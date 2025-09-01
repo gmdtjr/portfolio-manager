@@ -36,7 +36,11 @@ def load_accounts():
             if hasattr(st, 'secrets') and st.secrets:
                 value = st.secrets.get(key)
                 if value:
-                    st.sidebar.success(f"✅ {key}: {str(value)[:10]}...")
+                    # Google Service Account JSON은 너무 길어서 표시하지 않음
+                    if key == 'GOOGLE_APPLICATION_CREDENTIALS_JSON':
+                        st.sidebar.success(f"✅ {key}: Google Service Account JSON 설정됨")
+                    else:
+                        st.sidebar.success(f"✅ {key}: {str(value)[:10]}...")
                     return value
         except Exception as e:
             st.sidebar.error(f"❌ {key}: secrets 접근 오류 - {str(e)}")
@@ -44,7 +48,10 @@ def load_accounts():
         # 로컬에서 환경변수 접근
         value = os.getenv(key)
         if value:
-            st.sidebar.info(f"🔧 {key}: {str(value)[:10]}...")
+            if key == 'GOOGLE_APPLICATION_CREDENTIALS_JSON':
+                st.sidebar.info(f"🔧 {key}: Google Service Account JSON 설정됨")
+            else:
+                st.sidebar.info(f"🔧 {key}: {str(value)[:10]}...")
         else:
             st.sidebar.warning(f"❌ {key}: 설정되지 않음")
         return value

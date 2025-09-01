@@ -491,14 +491,30 @@ class GoogleSheetsManager:
     def _authenticate(self):
         """구글 API 인증"""
         try:
-            credentials = service_account.Credentials.from_service_account_file(
-                'service-account-key.json',
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
-            )
+            # 환경변수에서 서비스 계정 JSON 읽기 시도
+            service_account_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+            
+            if service_account_json:
+                # 환경변수에서 JSON 문자열을 파싱
+                import json
+                service_account_info = json.loads(service_account_json)
+                credentials = service_account.Credentials.from_service_account_info(
+                    service_account_info,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+                print("✅ 구글 API 인증이 완료되었습니다. (환경변수에서 JSON)")
+            else:
+                # 파일에서 읽기 시도
+                credentials = service_account.Credentials.from_service_account_file(
+                    'service-account-key.json',
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+                print("✅ 구글 API 인증이 완료되었습니다. (파일에서 JSON)")
+            
             self.service = build('sheets', 'v4', credentials=credentials)
-            print("✅ 구글 API 인증이 완료되었습니다.")
         except Exception as e:
             print(f"❌ 구글 API 인증 실패: {e}")
+            print("💡 GOOGLE_APPLICATION_CREDENTIALS_JSON 환경변수를 설정하거나 service-account-key.json 파일을 확인하세요.")
             raise
     
     def get_sheet_names(self):
