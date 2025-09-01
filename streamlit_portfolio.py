@@ -29,6 +29,15 @@ def initialize_components():
 
 def load_accounts():
     """계좌 정보 로드"""
+    # Streamlit Cloud에서는 st.secrets를 사용, 로컬에서는 os.getenv 사용
+    def get_secret(key):
+        try:
+            # Streamlit Cloud에서 secrets 접근
+            return st.secrets[key]
+        except:
+            # 로컬에서 환경변수 접근
+            return os.getenv(key)
+    
     required_env_vars = [
         'KOREA_INVESTMENT_ACC_NO_DOMESTIC', 'KOREA_INVESTMENT_API_KEY_DOMESTIC', 'KOREA_INVESTMENT_API_SECRET_DOMESTIC',
         'KOREA_INVESTMENT_ACC_NO_PENSION', 'KOREA_INVESTMENT_API_KEY_PENSION', 'KOREA_INVESTMENT_API_SECRET_PENSION',
@@ -38,7 +47,7 @@ def load_accounts():
     
     missing_vars = []
     for var in required_env_vars:
-        if not os.getenv(var):
+        if not get_secret(var):
             missing_vars.append(var)
     
     if missing_vars:
@@ -52,23 +61,23 @@ def load_accounts():
     accounts = [
         Account(
             name="국내주식",
-            acc_no=os.getenv('KOREA_INVESTMENT_ACC_NO_DOMESTIC'),
-            api_key=os.getenv('KOREA_INVESTMENT_API_KEY_DOMESTIC'),
-            api_secret=os.getenv('KOREA_INVESTMENT_API_SECRET_DOMESTIC'),
+            acc_no=get_secret('KOREA_INVESTMENT_ACC_NO_DOMESTIC'),
+            api_key=get_secret('KOREA_INVESTMENT_API_KEY_DOMESTIC'),
+            api_secret=get_secret('KOREA_INVESTMENT_API_SECRET_DOMESTIC'),
             account_type="domestic_stock"
         ),
         Account(
             name="국내연금",
-            acc_no=os.getenv('KOREA_INVESTMENT_ACC_NO_PENSION'),
-            api_key=os.getenv('KOREA_INVESTMENT_API_KEY_PENSION'),
-            api_secret=os.getenv('KOREA_INVESTMENT_API_SECRET_PENSION'),
+            acc_no=get_secret('KOREA_INVESTMENT_ACC_NO_PENSION'),
+            api_key=get_secret('KOREA_INVESTMENT_API_KEY_PENSION'),
+            api_secret=get_secret('KOREA_INVESTMENT_API_SECRET_PENSION'),
             account_type="pension"
         ),
         Account(
             name="해외주식",
-            acc_no=os.getenv('KOREA_INVESTMENT_ACC_NO_OVERSEAS'),
-            api_key=os.getenv('KOREA_INVESTMENT_API_KEY_OVERSEAS'),
-            api_secret=os.getenv('KOREA_INVESTMENT_API_SECRET_OVERSEAS'),
+            acc_no=get_secret('KOREA_INVESTMENT_ACC_NO_OVERSEAS'),
+            api_key=get_secret('KOREA_INVESTMENT_API_KEY_OVERSEAS'),
+            api_secret=get_secret('KOREA_INVESTMENT_API_SECRET_OVERSEAS'),
             account_type="overseas"
         )
     ]
@@ -253,6 +262,12 @@ def main():
     # 환경변수 상태 표시
     st.sidebar.subheader("🔧 시스템 상태")
     
+    def get_secret(key):
+        try:
+            return st.secrets[key]
+        except:
+            return os.getenv(key)
+    
     env_status = {}
     env_vars = [
         'KOREA_INVESTMENT_ACC_NO_DOMESTIC', 'KOREA_INVESTMENT_API_KEY_DOMESTIC', 
@@ -262,7 +277,7 @@ def main():
     ]
     
     for var in env_vars:
-        env_status[var] = "✅" if os.getenv(var) else "❌"
+        env_status[var] = "✅" if get_secret(var) else "❌"
     
     for var, status in env_status.items():
         st.sidebar.text(f"{status} {var}")
