@@ -9,7 +9,7 @@
 
 ### 2. 로컬 저장소를 GitHub에 연결
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/portfolio-manager.git
+git remote add origin https://github.com/gmdtjr/portfolio-manager.git
 git branch -M main
 git push -u origin main
 ```
@@ -18,7 +18,7 @@ git push -u origin main
 1. [Streamlit Cloud](https://share.streamlit.io/) 접속
 2. GitHub 계정으로 로그인
 3. "New app" 클릭
-4. 저장소 선택: `YOUR_USERNAME/portfolio-manager`
+4. 저장소 선택: `gmdtjr/portfolio-manager`
 5. Main file path: `streamlit_portfolio.py`
 6. "Deploy!" 클릭
 
