@@ -31,12 +31,23 @@ def load_accounts():
     """계좌 정보 로드"""
     # Streamlit Cloud에서는 st.secrets를 사용, 로컬에서는 os.getenv 사용
     def get_secret(key):
+        # Streamlit Cloud에서 secrets 접근 시도
         try:
-            # Streamlit Cloud에서 secrets 접근
-            return st.secrets[key]
-        except:
-            # 로컬에서 환경변수 접근
-            return os.getenv(key)
+            if hasattr(st, 'secrets') and st.secrets:
+                value = st.secrets.get(key)
+                if value:
+                    st.sidebar.success(f"✅ {key}: {str(value)[:10]}...")
+                    return value
+        except Exception as e:
+            st.sidebar.error(f"❌ {key}: secrets 접근 오류 - {str(e)}")
+        
+        # 로컬에서 환경변수 접근
+        value = os.getenv(key)
+        if value:
+            st.sidebar.info(f"🔧 {key}: {str(value)[:10]}...")
+        else:
+            st.sidebar.warning(f"❌ {key}: 설정되지 않음")
+        return value
     
     required_env_vars = [
         'KOREA_INVESTMENT_ACC_NO_DOMESTIC', 'KOREA_INVESTMENT_API_KEY_DOMESTIC', 'KOREA_INVESTMENT_API_SECRET_DOMESTIC',
@@ -224,6 +235,22 @@ def main():
     """메인 Streamlit 앱"""
     st.title("📊 포트폴리오 관리자")
     st.markdown("한국투자증권 계좌 포트폴리오를 구글 스프레드시트에 업데이트합니다.")
+    
+    # 디버깅: secrets 확인
+    st.sidebar.subheader("🔍 Secrets 디버깅")
+    try:
+        if hasattr(st, 'secrets'):
+            st.sidebar.write("✅ st.secrets 사용 가능")
+            if st.secrets:
+                st.sidebar.write(f"📝 Secrets 개수: {len(st.secrets)}")
+                for key in st.secrets.keys():
+                    st.sidebar.write(f"🔑 {key}: {str(st.secrets[key])[:20]}...")
+            else:
+                st.sidebar.write("❌ st.secrets가 비어있음")
+        else:
+            st.sidebar.write("❌ st.secrets 사용 불가")
+    except Exception as e:
+        st.sidebar.write(f"❌ Secrets 오류: {str(e)}")
     
     # 사이드바
     st.sidebar.title("⚙️ 설정")
