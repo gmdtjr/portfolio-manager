@@ -42,8 +42,9 @@ def load_accounts():
             missing_vars.append(var)
     
     if missing_vars:
-        st.error(f"다음 환경변수가 설정되지 않았습니다: {', '.join(missing_vars)}")
-        st.info("📝 .env 파일에 다음 변수들을 추가해주세요:")
+        st.warning(f"⚠️ 다음 환경변수가 설정되지 않았습니다: {', '.join(missing_vars)}")
+        st.info("📝 Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.")
+        st.info("🔧 또는 로컬에서 .env 파일에 다음 변수들을 추가해주세요:")
         for var in missing_vars:
             st.code(f"{var}=your_value")
         return None
@@ -224,18 +225,25 @@ def main():
         st.sidebar.subheader("🏦 연결된 계좌")
         for account in accounts:
             st.sidebar.text(f"• {account.name}: {account.acc_no[:8]}***")
+    else:
+        st.sidebar.subheader("🏦 연결된 계좌")
+        st.sidebar.warning("⚠️ 환경변수가 설정되지 않았습니다")
     
     # 메인 컨텐츠
-    st.header("�� 포트폴리오 업데이트")
+    st.header("🔄 포트폴리오 업데이트")
     
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        if st.button("🔄 포트폴리오 업데이트", type="primary", use_container_width=True):
-            update_portfolio()
-    
-    with col2:
-        st.info("💡 버튼을 클릭하면 한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
+    if accounts:
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            if st.button("🔄 포트폴리오 업데이트", type="primary", use_container_width=True):
+                update_portfolio()
+        
+        with col2:
+            st.info("💡 버튼을 클릭하면 한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
+    else:
+        st.warning("⚠️ 환경변수를 설정한 후 포트폴리오 업데이트를 사용할 수 있습니다.")
+        st.info("📝 Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.")
     
     # 최근 업데이트 시간 표시
     if 'last_update' in st.session_state:
