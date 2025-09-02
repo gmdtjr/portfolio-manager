@@ -8,6 +8,13 @@ import pandas as pd
 from dotenv import load_dotenv
 from deep_research_question_generator import DeepResearchQuestionGenerator
 
+# 투자 노트 매니저 import
+try:
+    from investment_notes_manager import InvestmentNotesManager
+    INVESTMENT_NOTES_AVAILABLE = True
+except ImportError:
+    INVESTMENT_NOTES_AVAILABLE = False
+
 def main():
     """Deep Research 질문 생성 테스트"""
     print("🤖 Deep Research 질문 생성기 테스트")
@@ -34,43 +41,90 @@ def main():
         generator = DeepResearchQuestionGenerator(spreadsheet_id)
         print("✅ 초기화 완료")
         
+        # 투자 노트 매니저 초기화 (선택사항)
+        notes_manager = None
+        if INVESTMENT_NOTES_AVAILABLE:
+            print("🔧 투자 노트 매니저를 초기화하고 있습니다...")
+            notes_manager = InvestmentNotesManager(spreadsheet_id)
+            
+            # 투자_노트 시트가 없으면 생성
+            try:
+                notes_df = notes_manager.read_investment_notes()
+                print(f"📊 현재 투자 노트: {len(notes_df)}개 종목")
+            except:
+                print("📝 '투자_노트' 시트가 없습니다. 새로 생성합니다.")
+                notes_manager.create_investment_notes_sheet()
+                notes_df = notes_manager.read_investment_notes()
+                print(f"📊 투자 노트 시트 생성 완료: {len(notes_df)}개 종목")
+        else:
+            print("⚠️ 투자 노트 매니저를 사용할 수 없습니다.")
+        
         # 포트폴리오 데이터 읽기
         print("\n📋 포트폴리오 데이터를 읽고 있습니다...")
         portfolio_df = generator.read_portfolio_data()
         print(f"✅ 포트폴리오 데이터 읽기 완료: {len(portfolio_df)}개 종목")
         
-        # Deep Research 질문 생성 프롬프트 생성
-        print("\n📝 Deep Research 질문 생성 프롬프트 생성 중...")
-        deep_research_prompt = generator.generate_deep_research_questions(portfolio_df)
-        print("✅ Deep Research 질문 생성 프롬프트 생성 완료")
-        print("\n" + "="*50)
-        print("📝 Deep Research 질문 생성 메타 프롬프트:")
-        print("="*50)
-        print(deep_research_prompt)
+        # 투자 노트가 있는 종목들 확인
+        if notes_manager:
+            portfolio_notes = notes_manager.get_notes_by_portfolio(portfolio_df)
+            missing_notes = notes_manager.get_missing_notes(portfolio_df)
+            
+            print(f"\n📝 포트폴리오 투자 노트 현황:")
+            print(f"- 투자 노트 있는 종목: {len(portfolio_notes)}개")
+            print(f"- 투자 노트 없는 종목: {len(missing_notes)}개")
+            
+            if missing_notes:
+                print(f"- 투자 노트가 필요한 종목들: {', '.join(missing_notes)}")
+        
+        # 기본 Deep Research 질문 생성 프롬프트 생성
+        print("\n📝 기본 Deep Research 질문 생성 프롬프트 생성 중...")
+        basic_prompt = generator.generate_deep_research_questions(portfolio_df)
+        print("✅ 기본 프롬프트 생성 완료")
+        
+        # 고급 Deep Research 질문 생성 프롬프트 생성 (투자 노트 활용)
+        if notes_manager:
+            print("\n📝 고급 Deep Research 질문 생성 프롬프트 생성 중...")
+            advanced_prompt = generator.generate_advanced_deep_research_questions(portfolio_df)
+            print("✅ 고급 프롬프트 생성 완료")
         
         # AI 질문 생성 (선택사항)
         print("\n🤖 Deep Research용 질문들을 생성 중... (이 단계는 시간이 걸릴 수 있습니다)")
         user_input = input("AI 질문 생성을 진행하시겠습니까? (y/n): ")
         
         if user_input.lower() == 'y':
-            ai_questions = generator.generate_ai_research_questions(portfolio_df)
-            print("✅ Deep Research용 질문들 생성 완료")
-            print("\n" + "="*50)
-            print("🤖 Deep Research용 질문들:")
-            print("="*50)
-            print(ai_questions)
+            # 기본 질문 생성
+            print("\n🤖 기본 질문들을 생성 중...")
+            basic_questions = generator.generate_ai_research_questions(portfolio_df)
+            print("✅ 기본 질문들 생성 완료")
             
-            # 질문들을 파일로 저장
-            with open('deep_research_questions.txt', 'w', encoding='utf-8') as f:
-                f.write(ai_questions)
-            print("\n💾 Deep Research 질문들이 'deep_research_questions.txt' 파일로 저장되었습니다.")
+            # 고급 질문 생성 (투자 노트 활용)
+            advanced_questions = None
+            if notes_manager:
+                print("\n🤖 고급 질문들을 생성 중...")
+                advanced_questions = generator.generate_advanced_ai_research_questions(portfolio_df)
+                print("✅ 고급 질문들 생성 완료")
+            
+            # 결과 저장
+            with open('basic_deep_research_questions.txt', 'w', encoding='utf-8') as f:
+                f.write(basic_questions)
+            print("💾 기본 질문들이 'basic_deep_research_questions.txt' 파일로 저장되었습니다.")
+            
+            if advanced_questions:
+                with open('advanced_deep_research_questions.txt', 'w', encoding='utf-8') as f:
+                    f.write(advanced_questions)
+                print("💾 고급 질문들이 'advanced_deep_research_questions.txt' 파일로 저장되었습니다.")
         else:
             print("⏭️ AI 질문 생성을 건너뜁니다.")
         
         # 프롬프트들을 파일로 저장
-        with open('deep_research_prompt.txt', 'w', encoding='utf-8') as f:
-            f.write(deep_research_prompt)
-        print("💾 Deep Research 질문 생성 프롬프트가 'deep_research_prompt.txt' 파일로 저장되었습니다.")
+        with open('basic_deep_research_prompt.txt', 'w', encoding='utf-8') as f:
+            f.write(basic_prompt)
+        print("💾 기본 프롬프트가 'basic_deep_research_prompt.txt' 파일로 저장되었습니다.")
+        
+        if notes_manager:
+            with open('advanced_deep_research_prompt.txt', 'w', encoding='utf-8') as f:
+                f.write(advanced_prompt)
+            print("💾 고급 프롬프트가 'advanced_deep_research_prompt.txt' 파일로 저장되었습니다.")
         
         print("\n✅ 모든 테스트가 완료되었습니다!")
         

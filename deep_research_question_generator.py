@@ -9,6 +9,13 @@ from google import genai
 from google.genai import types
 from typing import List, Dict, Optional
 
+# 투자 노트 매니저 import
+try:
+    from investment_notes_manager import InvestmentNotesManager
+    INVESTMENT_NOTES_AVAILABLE = True
+except ImportError:
+    INVESTMENT_NOTES_AVAILABLE = False
+
 class DeepResearchQuestionGenerator:
     """Deep Research를 위한 질문 생성을 위한 클래스"""
     
@@ -21,6 +28,12 @@ class DeepResearchQuestionGenerator:
         self.service = None
         self._authenticate_google()
         self._setup_gemini()
+        
+        # 투자 노트 매니저 초기화
+        if INVESTMENT_NOTES_AVAILABLE:
+            self.notes_manager = InvestmentNotesManager(spreadsheet_id)
+        else:
+            self.notes_manager = None
     
     def _authenticate_google(self):
         """구글 API 인증"""
@@ -283,6 +296,212 @@ Subject: Deep Research Question Generation for My Portfolio (Date: {today})
         except Exception as e:
             print(f"❌ AI 질문 생성 실패: {e}")
             return f"AI 질문 생성 중 오류가 발생했습니다: {str(e)}"
+    
+    def generate_advanced_deep_research_questions(self, df: pd.DataFrame) -> str:
+        """투자 노트를 활용한 고급 Deep Research 질문 생성"""
+        if not self.notes_manager:
+            print("⚠️ 투자 노트 매니저를 사용할 수 없습니다. 기본 질문 생성으로 대체합니다.")
+            return self.generate_deep_research_questions(df)
+        
+        try:
+            # 포트폴리오 투자 노트 조회
+            portfolio_notes = self.notes_manager.get_notes_by_portfolio(df)
+            missing_notes = self.notes_manager.get_missing_notes(df)
+            
+            today = datetime.now().strftime('%Y년 %m월 %d일')
+            
+            # 포트폴리오 분석 (기존과 동일)
+            total_value = df['평가금액(원)'].sum() if '평가금액(원)' in df.columns else 0
+            total_profit = df['평가손익(원)'].sum() if '평가손익(원)' in df.columns else 0
+            total_profit_rate = (total_profit / (total_value - total_profit) * 100) if (total_value - total_profit) > 0 else 0
+            
+            # 투자 노트가 있는 종목들의 상세 정보
+            notes_summary = ""
+            if not portfolio_notes.empty:
+                notes_summary = "\n### 📝 투자 노트가 있는 종목들\n"
+                for _, note in portfolio_notes.iterrows():
+                    conviction = note.get('투자 확신도 (Conviction)', '미설정')
+                    sector = note.get('섹터/산업 (Sector/Industry)', '미설정')
+                    asset_type = note.get('투자 유형 (Asset Type)', '미설정')
+                    kpis = note.get('핵심 모니터링 지표 (KPIs)', '미설정')
+                    
+                    notes_summary += f"""
+**{note['종목명']} ({note['종목코드']})**
+- **투자 확신도**: {conviction}
+- **섹터/산업**: {sector}
+- **투자 유형**: {asset_type}
+- **투자 아이디어**: {note['투자 아이디어 (Thesis)']}
+- **핵심 촉매**: {note['핵심 촉매 (Catalysts)']}
+- **핵심 리스크**: {note['핵심 리스크 (Risks)']}
+- **핵심 모니터링 지표**: {kpis}
+- **투자 기간**: {note['투자 기간 (Horizon)']}
+- **목표 주가**: {note['목표 주가 (Target)']}
+- **매도 조건**: {note['매도 조건 (Exit Plan)']}
+- **마지막 수정**: {note['마지막_수정일']}
+"""
+            
+            # 투자 노트가 없는 종목들
+            missing_notes_summary = ""
+            if missing_notes:
+                missing_notes_summary = f"\n### ⚠️ 투자 노트가 없는 종목들\n"
+                missing_stocks = df[df['종목코드'].astype(str).isin(missing_notes)]
+                for _, stock in missing_stocks.iterrows():
+                    missing_notes_summary += f"- {stock['종목명']} ({stock['종목코드']})\n"
+            
+            # 보유 종목 목록
+            portfolio_holdings = []
+            for _, row in df.iterrows():
+                if pd.notna(row['종목코드']) and pd.notna(row['종목명']):
+                    if str(row['종목코드']).startswith('A'):  # 해외주식
+                        market = "나스닥" if "NASDAQ" in str(row['종목명']).upper() else "뉴욕거래소"
+                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+                    else:  # 국내주식
+                        market = "코스닥" if len(str(row['종목코드'])) == 6 else "코스피"
+                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+            
+            portfolio_holdings_text = "\n".join(portfolio_holdings) if portfolio_holdings else "* [포트폴리오 데이터 없음]"
+            
+            prompt = f"""To: My Dedicated AI Research Assistant
+From: Head of Portfolio Management
+Subject: Advanced Deep Research Question Generation with Investment Notes (Date: {today})
+
+## Mission Briefing
+당신은 나의 포트폴리오를 위한 **'딥 리서치 질문 생성 전문가'**입니다. 나의 포트폴리오 데이터와 **투자 노트**를 종합적으로 분석하여, Deep Research에 던질 최적의 질문들을 생성해주세요. 이 질문들은 단순한 정보 수집을 넘어, 나의 **투자 아이디어와 리스크 관리**에 직접적으로 도움이 되는 **전략적 인사이트**를 얻을 수 있어야 합니다.
+
+## My Portfolio Context
+
+### 📊 Portfolio Overview
+- 총 평가금액: {total_value:,.0f}원
+- 총 평가손익: {total_profit:+,.0f}원
+- 전체 수익률: {total_profit_rate:+.2f}%
+
+### 📋 Portfolio Holdings
+{portfolio_holdings_text}
+{notes_summary}
+{missing_notes_summary}
+
+## Your Task: Generate Strategic Deep Research Questions
+
+### 1. **Investment Thesis Validation Questions (투자 아이디어 검증 질문)**
+내 투자 노트에 기록된 투자 아이디어들이 여전히 유효한지 검증하는 질문:
+
+- **Thesis Strength Check**: 내 투자 아이디어의 핵심 가정들이 현재 시장 상황에서 여전히 타당한지
+- **Catalyst Progress**: 내가 주목하는 촉매들이 예상대로 진행되고 있는지
+- **Risk Materialization**: 내가 우려하는 리스크들이 현실화되고 있는지
+- **Competitive Landscape**: 경쟁 구도가 내 투자 아이디어에 유리하게 변화하고 있는지
+- **Conviction Level Review**: 내 투자 확신도가 현재 시장 상황에서 여전히 적절한지
+- **KPI Performance**: 내 핵심 모니터링 지표들이 예상대로 움직이고 있는지
+
+### 2. **Portfolio-Specific Deep Dive Questions (포트폴리오 특화 심층 질문)**
+투자 노트를 기반으로 한 맞춤형 분석 질문:
+
+- **High Conviction Analysis**: 투자 확신도 '상(High)' 종목들의 성과와 투자 아이디어 일치성
+- **Sector Concentration Risk**: 섹터별 분산도와 투자 유형별 배분이 적절한지
+- **Asset Type Performance**: 성장주/가치주/배당주/경기순환주별 성과 분석
+- **Top Performers Analysis**: 상위 수익 종목들의 성과가 내 투자 아이디어와 일치하는지
+- **Risk Assessment**: 하위 수익 종목들의 리스크가 내 투자 노트의 예상과 일치하는지
+- **Valuation Check**: 현재 보유 종목들의 밸류에이션이 내 목표 주가 설정과 일치하는지
+
+### 3. **Strategic Action Questions (전략적 액션 질문)**
+투자 노트의 매도 조건과 연계된 실행 가능한 전략:
+
+- **Exit Strategy Validation**: 내 매도 조건들이 현재 시장 상황에서 적절한지
+- **Rebalancing Needs**: 포트폴리오 리밸런싱이 투자 아이디어에 부합하는지
+- **New Opportunities**: 현재 시장에서 내 투자 아이디어와 일치하는 추가 투자 기회
+- **Risk Management**: 투자 노트의 리스크 관리 방안이 현재 상황에 적합한지
+
+### 4. **Forward-Looking Questions (미래 지향 질문)**
+투자 기간과 목표를 고려한 장기적 관점:
+
+- **Horizon Alignment**: 내 투자 기간 설정이 현재 시장 사이클과 일치하는지
+- **Trend Analysis**: 내 보유 종목들이 속한 산업의 장기 트렌드가 투자 아이디어를 지지하는지
+- **Disruption Risk**: 기술 변화나 시장 혁신이 내 투자 아이디어에 미치는 영향
+- **Regulatory Changes**: 규제 변화가 내 보유 종목들과 투자 아이디어에 미칠 수 있는 영향
+
+## Expected Output Format
+
+각 질문은 다음 형식으로 생성해주세요:
+
+### 🔍 Question Category: [카테고리명]
+**Q1:** [구체적이고 전략적인 질문]
+- **Why Important:** 이 질문이 왜 중요한지 (내 투자 아이디어와 연관성)
+- **Expected Insight:** 이 질문에서 기대할 수 있는 인사이트
+- **Actionable:** 이 질문의 답변이 어떻게 투자 결정에 도움이 되는지
+- **Related Note:** 관련된 투자 노트 항목
+
+**Q2:** [다음 질문]
+...
+
+### 📊 Priority Ranking
+생성된 질문들을 우선순위별로 정렬해주세요:
+1. **High Priority:** 즉시 답변이 필요한 전략적 질문 (투자 아이디어 검증 관련)
+2. **Medium Priority:** 중기적으로 고려해야 할 질문 (포트폴리오 최적화 관련)
+3. **Low Priority:** 장기적 모니터링이 필요한 질문 (시장 트렌드 관련)
+
+### 💡 Special Focus Areas
+다음 영역에 특별히 집중해주세요:
+- **투자 확신도 '상(High)' 종목들**: 가장 확신하는 투자 아이디어의 검증에 집중
+- **섹터별 집중도 분석**: 특정 섹터에 과도하게 집중된 리스크 평가
+- **투자 유형별 성과**: 성장주/가치주/배당주/경기순환주별 성과와 투자 아이디어 일치성
+- **핵심 모니터링 지표 추적**: 각 종목의 KPI 성과와 투자 아이디어 유효성 검증
+- **투자 노트가 있는 종목들**: 내 투자 아이디어 검증에 집중
+- **투자 노트가 없는 종목들**: 기본적인 투자 근거와 리스크 분석
+- **상위/하위 수익 종목들**: 성과와 투자 아이디어의 일치성 검증
+
+## Success Criteria
+- 각 질문이 내 투자 노트의 내용을 반영해야 함
+- 투자 확신도와 섹터/산업 분류를 고려한 우선순위 설정
+- 투자 유형별 성과 분석과 포트폴리오 최적화 제안
+- 핵심 모니터링 지표(KPI) 기반의 투자 아이디어 유효성 검증
+- 투자 아이디어의 유효성을 검증할 수 있어야 함
+- 실행 가능한 투자 전략을 제시할 수 있어야 함
+- Deep Research의 강력한 분석 능력을 최대한 활용할 수 있어야 함
+
+이제 나의 포트폴리오 데이터와 투자 노트를 바탕으로, Deep Research에 던질 최적의 질문들을 생성해주세요."""
+            
+            return prompt
+            
+        except Exception as e:
+            print(f"❌ 고급 질문 생성 실패: {e}")
+            return self.generate_deep_research_questions(df)  # 기본 질문 생성으로 fallback
+    
+    def generate_advanced_ai_research_questions(self, df: pd.DataFrame) -> str:
+        """투자 노트를 활용한 고급 AI 질문 생성"""
+        try:
+            meta_prompt = self.generate_advanced_deep_research_questions(df)
+            
+            # 새로운 API 사용
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=meta_prompt
+            )
+            
+            # 응답 텍스트 안전하게 추출
+            try:
+                response_text = response.text
+                if response_text:
+                    return response_text
+                else:
+                    return "고급 AI 질문 생성 중 오류가 발생했습니다."
+            except Exception as text_error:
+                print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                
+                # 새로운 API의 fallback 방법 시도
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                            part = candidate.content.parts[0]
+                            if hasattr(part, 'text'):
+                                response_text = part.text
+                                if response_text:
+                                    return response_text
+                
+                return "고급 AI 질문 생성 중 오류가 발생했습니다."
+                
+        except Exception as e:
+            print(f"❌ 고급 AI 질문 생성 실패: {e}")
+            return f"고급 AI 질문 생성 중 오류가 발생했습니다: {str(e)}"
 
 def main():
     """메인 함수"""
