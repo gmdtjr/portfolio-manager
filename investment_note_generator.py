@@ -224,9 +224,9 @@ class InvestmentNoteGenerator:
             '투자 기간 (Horizon)': analysis_result.get('horizon', '중기'),
             '목표 주가 (Target)': analysis_result.get('target', ''),
             '매도 조건 (Exit Plan)': analysis_result.get('exit_plan', ''),
-            '포트폴리오_상태': '관심종목',  # 기본값은 관심종목
-            '최초_매수일': '',  # 빈 값으로 시작
-            '최종_매도일': '',  # 빈 값으로 시작
+            '포트폴리오_상태': '',  # 빈 값으로 시작 (포트폴리오 동기화 시 채워짐)
+            '최초_매수일': '',  # 빈 값으로 시작 (포트폴리오 동기화 시 채워짐)
+            '최종_매도일': '',  # 빈 값으로 시작 (포트폴리오 동기화 시 채워짐)
             '마지막_수정일': datetime.now().strftime('%Y-%m-%d')
         }
     
@@ -234,6 +234,9 @@ class InvestmentNoteGenerator:
         """투자 노트 생성 및 DB 저장"""
         try:
             print(f"📝 {company_name} ({stock_code}) 투자 노트 생성 중...")
+            
+            # 기존 데이터 마이그레이션 확인
+            self.notes_manager.migrate_existing_notes()
             
             # AI 분석을 통한 투자 노트 생성
             investment_note = self.generate_investment_note_from_report(company_name, stock_code, report_content)

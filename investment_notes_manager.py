@@ -403,6 +403,45 @@ class InvestmentNotesManager:
             print(f"❌ 관심종목 투자 노트 조회 실패: {e}")
             return pd.DataFrame()
     
+    def migrate_existing_notes(self) -> bool:
+        """기존 투자 노트에 새로운 컬럼들을 추가하여 마이그레이션"""
+        try:
+            print("🔄 기존 투자 노트 마이그레이션을 시작합니다...")
+            
+            # 현재 데이터 읽기
+            current_df = self.read_investment_notes()
+            
+            if current_df.empty:
+                print("📝 마이그레이션할 데이터가 없습니다.")
+                return True
+            
+            # 새로운 컬럼들이 있는지 확인
+            new_columns = ['포트폴리오_상태', '최초_매수일', '최종_매도일']
+            missing_columns = [col for col in new_columns if col not in current_df.columns]
+            
+            if not missing_columns:
+                print("✅ 모든 새로운 컬럼이 이미 존재합니다.")
+                return True
+            
+            print(f"📝 추가할 컬럼들: {missing_columns}")
+            
+            # 누락된 컬럼들 추가
+            for col in missing_columns:
+                if col == '포트폴리오_상태':
+                    current_df[col] = ''  # 빈 값으로 시작 (포트폴리오 동기화 시 채워짐)
+                elif col in ['최초_매수일', '최종_매도일']:
+                    current_df[col] = ''  # 빈 값으로 시작
+            
+            # 시트에 다시 쓰기
+            self._write_notes_to_sheet(current_df)
+            
+            print(f"✅ 마이그레이션 완료: {len(missing_columns)}개 컬럼 추가됨")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 마이그레이션 실패: {e}")
+            return False
+    
     def get_sold_notes(self) -> pd.DataFrame:
         """매도완료된 종목들의 투자 노트만 조회"""
         try:
@@ -419,6 +458,9 @@ class InvestmentNotesManager:
         except Exception as e:
             print(f"❌ 매도완료 투자 노트 조회 실패: {e}")
             return pd.DataFrame()
+    
+    def get_notes_by_portfolio(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+        """포트폴리오에 있는 종목들의 투자 노트만 조회"""
         try:
             notes_df = self.read_investment_notes()
             

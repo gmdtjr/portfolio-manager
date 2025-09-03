@@ -396,6 +396,86 @@ def load_accounts():
     
     return accounts
 
+def sync_investment_notes():
+    """투자 노트와 포트폴리오 상태 동기화"""
+    try:
+        if not INVESTMENT_NOTE_GENERATOR_AVAILABLE:
+            st.error("❌ 투자 노트 동기화 기능을 사용할 수 없습니다.")
+            st.info("💡 필요한 모듈이 설치되지 않았습니다.")
+            return
+        
+        # 환경변수 확인
+        def get_secret(key):
+            try:
+                return st.secrets[key]
+            except:
+                return os.getenv(key)
+        
+        spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
+        
+        if not spreadsheet_id:
+            st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
+            return
+        
+        with st.spinner("투자 노트와 포트폴리오 상태를 동기화하고 있습니다..."):
+            # 투자 노트 매니저 초기화
+            from investment_notes_manager import InvestmentNotesManager
+            notes_manager = InvestmentNotesManager(spreadsheet_id)
+            
+            # 기존 데이터 마이그레이션 확인
+            notes_manager.migrate_existing_notes()
+            
+            # 포트폴리오 데이터 읽기
+            st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
+            generator = DeepResearchQuestionGenerator(spreadsheet_id)
+            portfolio_df = generator.read_portfolio_data()
+            
+            if portfolio_df.empty:
+                st.warning("⚠️ 포트폴리오 데이터가 없습니다. 먼저 포트폴리오를 업데이트해주세요.")
+                return
+            
+            # 투자 노트 상태 업데이트
+            st.info("🔄 투자 노트 상태를 업데이트하고 있습니다...")
+            success = notes_manager.update_portfolio_status(portfolio_df)
+            
+            if success:
+                st.success("✅ 투자 노트 동기화가 완료되었습니다!")
+                
+                # 동기화 결과 표시
+                portfolio_notes = notes_manager.get_portfolio_notes()
+                watchlist_notes = notes_manager.get_watchlist_notes()
+                sold_notes = notes_manager.get_sold_notes()
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("보유 종목", len(portfolio_notes))
+                    if not portfolio_notes.empty:
+                        st.write("**보유 종목들:**")
+                        for _, note in portfolio_notes.iterrows():
+                            st.write(f"• {note['종목명']} ({note['종목코드']})")
+                
+                with col2:
+                    st.metric("관심 종목", len(watchlist_notes))
+                    if not watchlist_notes.empty:
+                        st.write("**관심 종목들:**")
+                        for _, note in watchlist_notes.iterrows():
+                            st.write(f"• {note['종목명']} ({note['종목코드']})")
+                
+                with col3:
+                    st.metric("매도 완료", len(sold_notes))
+                    if not sold_notes.empty:
+                        st.write("**매도 완료 종목들:**")
+                        for _, note in sold_notes.iterrows():
+                            st.write(f"• {note['종목명']} ({note['종목코드']})")
+            else:
+                st.error("❌ 투자 노트 동기화에 실패했습니다.")
+                
+    except Exception as e:
+        st.error(f"❌ 투자 노트 동기화 실패: {e}")
+        import traceback
+        st.error(f"상세 오류: {traceback.format_exc()}")
+
 def update_portfolio():
     """포트폴리오 업데이트 실행"""
     try:
@@ -452,23 +532,9 @@ def update_portfolio():
                 all_portfolio, total_cash, exchange_rate, exchange_source
             )
             
-            # 투자 노트 상태 업데이트 (투자 노트 생성기가 사용 가능한 경우)
-            if INVESTMENT_NOTE_GENERATOR_AVAILABLE:
-                try:
-                    from investment_notes_manager import InvestmentNotesManager
-                    notes_manager = InvestmentNotesManager(st.session_state.sheets_manager.spreadsheet_id)
-                    
-                    # 포트폴리오 데이터프레임 생성
-                    portfolio_df = pd.DataFrame(all_portfolio)
-                    if not portfolio_df.empty:
-                        # 포트폴리오 상태 업데이트
-                        notes_manager.update_portfolio_status(portfolio_df)
-                        st.info("📝 투자 노트 상태가 자동으로 업데이트되었습니다.")
-                except Exception as e:
-                    st.warning(f"⚠️ 투자 노트 상태 업데이트 실패: {e}")
-            
             # 결과 표시
             st.success("✅ 포트폴리오 업데이트가 완료되었습니다!")
+            st.info("💡 투자 노트 상태를 동기화하려면 '📝 투자 노트 동기화' 버튼을 클릭하세요.")
             
             # 포트폴리오 요약 표시
             display_portfolio_summary(all_portfolio, total_cash, exchange_rate)
@@ -592,14 +658,19 @@ def main():
         st.header("🔄 포트폴리오 업데이트")
         
         if accounts:
-            col1, col2 = st.columns([1, 3])
+            col1, col2, col3 = st.columns([1, 1, 2])
             
             with col1:
                 if st.button("🔄 포트폴리오 업데이트", type="primary", use_container_width=True):
                     update_portfolio()
             
             with col2:
-                st.info("💡 버튼을 클릭하면 한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
+                if st.button("📝 투자 노트 동기화", type="secondary", use_container_width=True):
+                    sync_investment_notes()
+            
+            with col3:
+                st.info("💡 포트폴리오 업데이트: 한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
+                st.info("💡 투자 노트 동기화: 기존 투자 노트의 포트폴리오 상태를 현재 포트폴리오와 동기화합니다.")
         else:
             st.warning("⚠️ 환경변수를 설정한 후 포트폴리오 업데이트를 사용할 수 있습니다.")
             st.info("📝 Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.")
