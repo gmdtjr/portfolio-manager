@@ -54,24 +54,32 @@ class InvestmentNotesManager:
             
             # 투자_노트 시트가 있으면 사용
             if '투자_노트' in sheet_names:
-                range_name = '투자_노트!A:M'  # A부터 M까지 (13개 컬럼)
                 print("📊 '투자_노트' 시트를 사용합니다.")
             else:
                 raise Exception("'투자_노트' 시트가 없습니다. 먼저 시트를 생성해주세요.")
             
-            # 데이터 읽기
-            result = self.service.spreadsheets().values().get(
+            # 먼저 헤더만 읽어서 컬럼 수 확인
+            header_result = self.service.spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id,
-                range=range_name
+                range='투자_노트!A1:Z1'  # 충분히 넓은 범위로 헤더 읽기
             ).execute()
             
-            values = result.get('values', [])
+            headers = header_result.get('values', [[]])[0]
+            print(f"📋 헤더 컬럼들: {headers}")
+            
+            # 데이터가 있는 행 수 확인
+            data_result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range='투자_노트!A:Z'  # 충분히 넓은 범위로 데이터 읽기
+            ).execute()
+            
+            values = data_result.get('values', [])
             if not values:
                 # 빈 시트인 경우 기본 헤더 생성
                 return self._create_empty_notes_df()
             
-            # 데이터프레임 생성
-            df = pd.DataFrame(values[1:], columns=values[0])
+            # 데이터프레임 생성 (헤더 제외)
+            df = pd.DataFrame(values[1:], columns=headers)
             
             # 마지막_수정일 컬럼을 datetime으로 변환
             if '마지막_수정일' in df.columns:
@@ -274,6 +282,22 @@ class InvestmentNotesManager:
                             lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x)
                         )
                 
+                # 컬럼 순서를 명시적으로 지정
+                expected_columns = [
+                    '종목코드', '종목명', '투자 아이디어 (Thesis)', '투자 확신도 (Conviction)', 
+                    '섹터/산업 (Sector/Industry)', '투자 유형 (Asset Type)', '핵심 촉매 (Catalysts)', 
+                    '핵심 리스크 (Risks)', '핵심 모니터링 지표 (KPIs)', '투자 기간 (Horizon)', 
+                    '목표 주가 (Target)', '매도 조건 (Exit Plan)', '포트폴리오_상태', '최초_매수일', '최종_매도일', '마지막_수정일'
+                ]
+                
+                # 누락된 컬럼들 추가 (빈 값으로)
+                for col in expected_columns:
+                    if col not in df_copy.columns:
+                        df_copy[col] = ''
+                
+                # 컬럼 순서대로 재정렬
+                df_copy = df_copy[expected_columns]
+                
                 # 헤더 포함하여 데이터 준비
                 data = [df_copy.columns.tolist()] + df_copy.values.tolist()
             
@@ -316,9 +340,14 @@ class InvestmentNotesManager:
             return None
     
     def update_portfolio_status(self, portfolio_df: pd.DataFrame) -> bool:
-        """포트폴리오 상태를 투자 노트에 자동 업데이트"""
+        """포트폴리오 상태를 투자 노트에 자동 업데이트
+        
+        주의: 실제 매수/매도 날짜가 아닌 동기화 시점을 기준으로 설정됩니다.
+        포트폴리오에는 현재 보유 종목 정보만 있고 매수/매도 이력은 없기 때문입니다.
+        """
         try:
             print("🔄 포트폴리오 상태를 투자 노트에 업데이트 중...")
+            print("💡 주의: 매수/매도 날짜는 동기화 시점을 기준으로 설정됩니다.")
             
             # 현재 투자 노트 읽기
             notes_df = self.read_investment_notes()
@@ -337,6 +366,7 @@ class InvestmentNotesManager:
             
             # 업데이트된 노트 수
             updated_count = 0
+            today = datetime.now().strftime('%Y-%m-%d')
             
             for idx, note in notes_df.iterrows():
                 stock_code = str(note['종목코드']).strip()
@@ -351,19 +381,37 @@ class InvestmentNotesManager:
                 
                 # 상태 변경이 필요한지 확인
                 if in_portfolio and current_status != '보유중':
-                    # 포트폴리오에 새로 들어온 경우
+                    # 포트폴리오에 새로 들어온 경우 (또는 처음 동기화하는 경우)
                     notes_df.at[idx, '포트폴리오_상태'] = '보유중'
-                    if pd.isna(notes_df.at[idx, '최초_매수일']) or notes_df.at[idx, '최초_매수일'] == '':
-                        notes_df.at[idx, '최초_매수일'] = datetime.now().strftime('%Y-%m-%d')
+                    
+                    # 최초_매수일 설정 (동기화 시점을 매수일로 간주)
+                    try:
+                        if '최초_매수일' in notes_df.columns:
+                            if pd.isna(notes_df.at[idx, '최초_매수일']) or notes_df.at[idx, '최초_매수일'] == '':
+                                notes_df.at[idx, '최초_매수일'] = today
+                        else:
+                            print(f"⚠️ '최초_매수일' 컬럼이 없습니다. 컬럼 목록: {list(notes_df.columns)}")
+                    except Exception as e:
+                        print(f"⚠️ 최초_매수일 설정 중 오류: {e}")
+                    
                     updated_count += 1
-                    print(f"✅ {stock_name} ({stock_code}): → 보유중")
+                    print(f"✅ {stock_name} ({stock_code}): → 보유중 (매수일: {today})")
                     
                 elif not in_portfolio and current_status == '보유중':
-                    # 포트폴리오에서 빠진 경우
+                    # 포트폴리오에서 빠진 경우 (매도된 것으로 간주)
                     notes_df.at[idx, '포트폴리오_상태'] = '매도완료'
-                    notes_df.at[idx, '최종_매도일'] = datetime.now().strftime('%Y-%m-%d')
+                    
+                    # 최종_매도일 설정 (동기화 시점을 매도일로 간주)
+                    try:
+                        if '최종_매도일' in notes_df.columns:
+                            notes_df.at[idx, '최종_매도일'] = today
+                        else:
+                            print(f"⚠️ '최종_매도일' 컬럼이 없습니다. 컬럼 목록: {list(notes_df.columns)}")
+                    except Exception as e:
+                        print(f"⚠️ 최종_매도일 설정 중 오류: {e}")
+                    
                     updated_count += 1
-                    print(f"📉 {stock_name} ({stock_code}): 보유중 → 매도완료")
+                    print(f"📉 {stock_name} ({stock_code}): 보유중 → 매도완료 (매도일: {today})")
                 
                 elif not in_portfolio and (current_status == '' or pd.isna(current_status)):
                     # 빈 상태인 경우 관심종목으로 설정
@@ -439,6 +487,7 @@ class InvestmentNotesManager:
                 return True
             
             print(f"📝 추가할 컬럼들: {missing_columns}")
+            print(f"📋 현재 컬럼들: {list(current_df.columns)}")
             
             # 누락된 컬럼들 추가
             for col in missing_columns:
@@ -446,6 +495,8 @@ class InvestmentNotesManager:
                     current_df[col] = ''  # 빈 값으로 시작 (포트폴리오 동기화 시 채워짐)
                 elif col in ['최초_매수일', '최종_매도일']:
                     current_df[col] = ''  # 빈 값으로 시작
+            
+            print(f"📝 컬럼 추가 후: {list(current_df.columns)}")
             
             # 시트에 다시 쓰기
             self._write_notes_to_sheet(current_df)
