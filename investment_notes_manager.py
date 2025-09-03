@@ -90,7 +90,7 @@ class InvestmentNotesManager:
             '종목코드', '종목명', '투자 아이디어 (Thesis)', '투자 확신도 (Conviction)', 
             '섹터/산업 (Sector/Industry)', '투자 유형 (Asset Type)', '핵심 촉매 (Catalysts)', 
             '핵심 리스크 (Risks)', '핵심 모니터링 지표 (KPIs)', '투자 기간 (Horizon)', 
-            '목표 주가 (Target)', '매도 조건 (Exit Plan)', '마지막_수정일'
+            '목표 주가 (Target)', '매도 조건 (Exit Plan)', '포트폴리오_상태', '최초_매수일', '최종_매도일', '마지막_수정일'
         ]
         return pd.DataFrame(columns=columns)
     
@@ -122,7 +122,7 @@ class InvestmentNotesManager:
                 '종목코드', '종목명', '투자 아이디어 (Thesis)', '투자 확신도 (Conviction)', 
                 '섹터/산업 (Sector/Industry)', '투자 유형 (Asset Type)', '핵심 촉매 (Catalysts)', 
                 '핵심 리스크 (Risks)', '핵심 모니터링 지표 (KPIs)', '투자 기간 (Horizon)', 
-                '목표 주가 (Target)', '매도 조건 (Exit Plan)', '마지막_수정일'
+                '목표 주가 (Target)', '매도 조건 (Exit Plan)', '포트폴리오_상태', '최초_매수일', '최종_매도일', '마지막_수정일'
             ]
             
             # 헤더 쓰기
@@ -257,7 +257,7 @@ class InvestmentNotesManager:
                     '종목코드', '종목명', '투자 아이디어 (Thesis)', '투자 확신도 (Conviction)', 
                     '섹터/산업 (Sector/Industry)', '투자 유형 (Asset Type)', '핵심 촉매 (Catalysts)', 
                     '핵심 리스크 (Risks)', '핵심 모니터링 지표 (KPIs)', '투자 기간 (Horizon)', 
-                    '목표 주가 (Target)', '매도 조건 (Exit Plan)', '마지막_수정일'
+                    '목표 주가 (Target)', '매도 조건 (Exit Plan)', '포트폴리오_상태', '최초_매수일', '최종_매도일', '마지막_수정일'
                 ]
                 data = [headers]
                 print("📝 빈 시트에 헤더만 작성합니다.")
@@ -315,8 +315,110 @@ class InvestmentNotesManager:
             print(f"❌ 투자 노트 조회 실패: {e}")
             return None
     
-    def get_notes_by_portfolio(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
-        """포트폴리오에 있는 종목들의 투자 노트만 조회"""
+    def update_portfolio_status(self, portfolio_df: pd.DataFrame) -> bool:
+        """포트폴리오 상태를 투자 노트에 자동 업데이트"""
+        try:
+            print("🔄 포트폴리오 상태를 투자 노트에 업데이트 중...")
+            
+            # 현재 투자 노트 읽기
+            notes_df = self.read_investment_notes()
+            
+            if notes_df.empty:
+                print("📝 투자 노트가 비어있어 업데이트할 내용이 없습니다.")
+                return True
+            
+            # 포트폴리오에 있는 종목코드 목록
+            portfolio_stocks = set(portfolio_df['종목코드'].astype(str).tolist())
+            
+            # 업데이트된 노트 수
+            updated_count = 0
+            
+            for idx, note in notes_df.iterrows():
+                stock_code = str(note['종목코드'])
+                current_status = note.get('포트폴리오_상태', '관심종목')
+                
+                # 포트폴리오에 있는지 확인
+                in_portfolio = stock_code in portfolio_stocks
+                
+                # 상태 변경이 필요한지 확인
+                if in_portfolio and current_status != '보유중':
+                    # 포트폴리오에 새로 들어온 경우
+                    notes_df.at[idx, '포트폴리오_상태'] = '보유중'
+                    if pd.isna(notes_df.at[idx, '최초_매수일']):
+                        notes_df.at[idx, '최초_매수일'] = datetime.now().strftime('%Y-%m-%d')
+                    updated_count += 1
+                    print(f"✅ {note['종목명']} ({stock_code}): 관심종목 → 보유중")
+                    
+                elif not in_portfolio and current_status == '보유중':
+                    # 포트폴리오에서 빠진 경우
+                    notes_df.at[idx, '포트폴리오_상태'] = '매도완료'
+                    notes_df.at[idx, '최종_매도일'] = datetime.now().strftime('%Y-%m-%d')
+                    updated_count += 1
+                    print(f"📉 {note['종목명']} ({stock_code}): 보유중 → 매도완료")
+            
+            # 변경사항이 있으면 시트에 저장
+            if updated_count > 0:
+                self._write_notes_to_sheet(notes_df)
+                print(f"✅ 포트폴리오 상태 업데이트 완료: {updated_count}개 종목")
+            else:
+                print("📝 업데이트할 포트폴리오 상태가 없습니다.")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ 포트폴리오 상태 업데이트 실패: {e}")
+            return False
+    
+    def get_portfolio_notes(self) -> pd.DataFrame:
+        """현재 포트폴리오에 있는 종목들의 투자 노트만 조회"""
+        try:
+            notes_df = self.read_investment_notes()
+            
+            if notes_df.empty:
+                return pd.DataFrame()
+            
+            # 포트폴리오에 있는 종목들만 필터링
+            portfolio_notes = notes_df[notes_df['포트폴리오_상태'] == '보유중']
+            
+            return portfolio_notes
+            
+        except Exception as e:
+            print(f"❌ 포트폴리오 투자 노트 조회 실패: {e}")
+            return pd.DataFrame()
+    
+    def get_watchlist_notes(self) -> pd.DataFrame:
+        """관심종목 투자 노트만 조회"""
+        try:
+            notes_df = self.read_investment_notes()
+            
+            if notes_df.empty:
+                return pd.DataFrame()
+            
+            # 관심종목만 필터링
+            watchlist_notes = notes_df[notes_df['포트폴리오_상태'] == '관심종목']
+            
+            return watchlist_notes
+            
+        except Exception as e:
+            print(f"❌ 관심종목 투자 노트 조회 실패: {e}")
+            return pd.DataFrame()
+    
+    def get_sold_notes(self) -> pd.DataFrame:
+        """매도완료된 종목들의 투자 노트만 조회"""
+        try:
+            notes_df = self.read_investment_notes()
+            
+            if notes_df.empty:
+                return pd.DataFrame()
+            
+            # 매도완료된 종목들만 필터링
+            sold_notes = notes_df[notes_df['포트폴리오_상태'] == '매도완료']
+            
+            return sold_notes
+            
+        except Exception as e:
+            print(f"❌ 매도완료 투자 노트 조회 실패: {e}")
+            return pd.DataFrame()
         try:
             notes_df = self.read_investment_notes()
             

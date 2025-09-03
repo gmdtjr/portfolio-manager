@@ -224,6 +224,9 @@ class InvestmentNoteGenerator:
             '투자 기간 (Horizon)': analysis_result.get('horizon', '중기'),
             '목표 주가 (Target)': analysis_result.get('target', ''),
             '매도 조건 (Exit Plan)': analysis_result.get('exit_plan', ''),
+            '포트폴리오_상태': '관심종목',  # 기본값은 관심종목
+            '최초_매수일': '',  # 빈 값으로 시작
+            '최종_매도일': '',  # 빈 값으로 시작
             '마지막_수정일': datetime.now().strftime('%Y-%m-%d')
         }
     

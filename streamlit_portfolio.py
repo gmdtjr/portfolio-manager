@@ -452,6 +452,21 @@ def update_portfolio():
                 all_portfolio, total_cash, exchange_rate, exchange_source
             )
             
+            # 투자 노트 상태 업데이트 (투자 노트 생성기가 사용 가능한 경우)
+            if INVESTMENT_NOTE_GENERATOR_AVAILABLE:
+                try:
+                    from investment_notes_manager import InvestmentNotesManager
+                    notes_manager = InvestmentNotesManager(st.session_state.sheets_manager.spreadsheet_id)
+                    
+                    # 포트폴리오 데이터프레임 생성
+                    portfolio_df = pd.DataFrame(all_portfolio)
+                    if not portfolio_df.empty:
+                        # 포트폴리오 상태 업데이트
+                        notes_manager.update_portfolio_status(portfolio_df)
+                        st.info("📝 투자 노트 상태가 자동으로 업데이트되었습니다.")
+                except Exception as e:
+                    st.warning(f"⚠️ 투자 노트 상태 업데이트 실패: {e}")
+            
             # 결과 표시
             st.success("✅ 포트폴리오 업데이트가 완료되었습니다!")
             
