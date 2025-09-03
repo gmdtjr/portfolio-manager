@@ -34,55 +34,80 @@ class InvestmentNoteGenerator:
     
     def generate_investment_note_from_report(self, company_name: str, stock_code: str, report_content: str) -> Dict:
         """기업 보고서를 분석하여 투자 노트 초안 생성"""
-        try:
-            # 메타 프롬프트 생성
-            meta_prompt = self._create_analysis_prompt(company_name, stock_code, report_content)
-            
-            # AI 분석 요청
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=meta_prompt
-            )
-            
-            # 응답 파싱
+        max_retries = 3
+        retry_delay = 2  # 초
+        
+        for attempt in range(max_retries):
             try:
-                response_text = response.text
-                if response_text:
-                    analysis_result = self._parse_ai_response(response_text)
-                else:
-                    raise ValueError("AI 응답이 비어있습니다.")
-            except Exception as text_error:
-                print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                print(f"🤖 AI 분석 시도 {attempt + 1}/{max_retries}...")
                 
-                # 새로운 API의 fallback 방법 시도
-                if hasattr(response, 'candidates') and response.candidates:
-                    candidate = response.candidates[0]
-                    if hasattr(candidate, 'content') and candidate.content:
-                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
-                            part = candidate.content.parts[0]
-                            if hasattr(part, 'text'):
-                                response_text = part.text
-                                if response_text:
-                                    analysis_result = self._parse_ai_response(response_text)
-                                else:
-                                    raise ValueError("AI 응답이 비어있습니다.")
-                            else:
-                                raise ValueError("AI 응답에서 텍스트를 추출할 수 없습니다.")
-                        else:
-                            raise ValueError("AI 응답에서 parts를 찾을 수 없습니다.")
+                # 메타 프롬프트 생성
+                meta_prompt = self._create_analysis_prompt(company_name, stock_code, report_content)
+                
+                # AI 분석 요청
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=meta_prompt
+                )
+                
+                # 응답 파싱
+                try:
+                    response_text = response.text
+                    if response_text:
+                        analysis_result = self._parse_ai_response(response_text)
                     else:
-                        raise ValueError("AI 응답에서 content를 찾을 수 없습니다.")
+                        raise ValueError("AI 응답이 비어있습니다.")
+                except Exception as text_error:
+                    print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                    
+                    # 새로운 API의 fallback 방법 시도
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                part = candidate.content.parts[0]
+                                if hasattr(part, 'text'):
+                                    response_text = part.text
+                                    if response_text:
+                                        analysis_result = self._parse_ai_response(response_text)
+                                    else:
+                                        raise ValueError("AI 응답이 비어있습니다.")
+                                else:
+                                    raise ValueError("AI 응답에서 텍스트를 추출할 수 없습니다.")
+                            else:
+                                raise ValueError("AI 응답에서 parts를 찾을 수 없습니다.")
+                        else:
+                            raise ValueError("AI 응답에서 content를 찾을 수 없습니다.")
+                    else:
+                        raise ValueError("AI 응답에서 candidates를 찾을 수 없습니다.")
+                
+                # 투자 노트 데이터 구조화
+                investment_note = self._structure_investment_note(company_name, stock_code, analysis_result)
+                
+                print(f"✅ AI 분석 성공 (시도 {attempt + 1})")
+                return investment_note
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"❌ AI 분석 실패 (시도 {attempt + 1}): {error_msg}")
+                
+                # 503 오류인 경우 재시도
+                if "503" in error_msg or "UNAVAILABLE" in error_msg:
+                    if attempt < max_retries - 1:
+                        print(f"⏳ {retry_delay}초 후 재시도합니다...")
+                        import time
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # 지수 백오프
+                        continue
+                    else:
+                        print("❌ 최대 재시도 횟수 초과. 서버가 과부하 상태입니다.")
+                        raise e
                 else:
-                    raise ValueError("AI 응답에서 candidates를 찾을 수 없습니다.")
-            
-            # 투자 노트 데이터 구조화
-            investment_note = self._structure_investment_note(company_name, stock_code, analysis_result)
-            
-            return investment_note
-            
-        except Exception as e:
-            print(f"❌ 투자 노트 생성 실패: {e}")
-            raise
+                    # 다른 오류는 즉시 실패
+                    raise e
+        
+        # 모든 재시도 실패
+        raise Exception("AI 분석에 실패했습니다.")
     
     def _create_analysis_prompt(self, company_name: str, stock_code: str, report_content: str) -> str:
         """AI 분석을 위한 메타 프롬프트 생성"""
@@ -236,12 +261,15 @@ class InvestmentNoteGenerator:
             print(f"📝 {company_name} ({stock_code}) 투자 노트 생성 중...")
             
             # 기존 데이터 마이그레이션 확인
+            print("🔄 마이그레이션 확인 중...")
             self.notes_manager.migrate_existing_notes()
             
             # AI 분석을 통한 투자 노트 생성
+            print("🤖 AI 분석 중...")
             investment_note = self.generate_investment_note_from_report(company_name, stock_code, report_content)
             
             # 기존 노트 확인
+            print("🔍 기존 노트 확인 중...")
             existing_note = self.notes_manager.get_note_by_stock_code(stock_code)
             
             if existing_note:
@@ -267,6 +295,8 @@ class InvestmentNoteGenerator:
             
         except Exception as e:
             print(f"❌ 투자 노트 생성 및 저장 실패: {e}")
+            import traceback
+            print(f"상세 오류: {traceback.format_exc()}")
             return False
     
     def preview_note(self, company_name: str, stock_code: str, report_content: str) -> Dict:
