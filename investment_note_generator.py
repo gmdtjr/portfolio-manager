@@ -240,6 +240,7 @@ class InvestmentNoteGenerator:
             
             if existing_note:
                 # 기존 노트 업데이트
+                print(f"📝 기존 투자 노트가 발견되어 업데이트합니다.")
                 success = self.notes_manager.update_investment_note(stock_code, investment_note)
                 if success:
                     print(f"✅ {company_name} ({stock_code}) 투자 노트가 업데이트되었습니다.")
@@ -248,6 +249,7 @@ class InvestmentNoteGenerator:
                     return False
             else:
                 # 새 노트 추가
+                print(f"📝 새로운 투자 노트를 추가합니다.")
                 success = self.notes_manager.add_investment_note(investment_note)
                 if success:
                     print(f"✅ {company_name} ({stock_code}) 투자 노트가 생성되었습니다.")

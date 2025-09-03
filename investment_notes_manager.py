@@ -156,7 +156,7 @@ class InvestmentNotesManager:
             # 현재 데이터 읽기
             current_df = self.read_investment_notes()
             
-            # 중복 확인
+            # 중복 확인 (빈 데이터프레임이 아닌 경우에만)
             if not current_df.empty and note_data['종목코드'] in current_df['종목코드'].values:
                 print(f"⚠️ 종목코드 {note_data['종목코드']}가 이미 존재합니다. 업데이트를 사용하세요.")
                 return False
@@ -166,7 +166,14 @@ class InvestmentNotesManager:
             
             # 데이터프레임에 추가
             new_row = pd.DataFrame([note_data])
-            updated_df = pd.concat([current_df, new_row], ignore_index=True)
+            
+            if current_df.empty:
+                # 빈 데이터프레임인 경우 새 데이터만 사용
+                updated_df = new_row
+                print(f"📝 빈 시트에 첫 번째 투자 노트를 추가합니다.")
+            else:
+                # 기존 데이터에 새 데이터 추가
+                updated_df = pd.concat([current_df, new_row], ignore_index=True)
             
             # 시트에 쓰기
             self._write_notes_to_sheet(updated_df)
@@ -244,20 +251,31 @@ class InvestmentNotesManager:
     def _write_notes_to_sheet(self, df: pd.DataFrame):
         """데이터프레임을 시트에 쓰기"""
         try:
-            # Timestamp를 문자열로 변환 (안전하게 처리)
-            df_copy = df.copy()
-            if '마지막_수정일' in df_copy.columns:
-                # datetime 타입인 경우에만 strftime 적용
-                if pd.api.types.is_datetime64_any_dtype(df_copy['마지막_수정일']):
-                    df_copy['마지막_수정일'] = df_copy['마지막_수정일'].dt.strftime('%Y-%m-%d')
-                elif df_copy['마지막_수정일'].dtype == 'object':
-                    # 문자열이 아닌 경우만 변환
-                    df_copy['마지막_수정일'] = df_copy['마지막_수정일'].apply(
-                        lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x)
-                    )
-            
-            # 헤더 포함하여 데이터 준비
-            data = [df_copy.columns.tolist()] + df_copy.values.tolist()
+            # 빈 데이터프레임인 경우 헤더만 쓰기
+            if df.empty:
+                headers = [
+                    '종목코드', '종목명', '투자 아이디어 (Thesis)', '투자 확신도 (Conviction)', 
+                    '섹터/산업 (Sector/Industry)', '투자 유형 (Asset Type)', '핵심 촉매 (Catalysts)', 
+                    '핵심 리스크 (Risks)', '핵심 모니터링 지표 (KPIs)', '투자 기간 (Horizon)', 
+                    '목표 주가 (Target)', '매도 조건 (Exit Plan)', '마지막_수정일'
+                ]
+                data = [headers]
+                print("📝 빈 시트에 헤더만 작성합니다.")
+            else:
+                # Timestamp를 문자열로 변환 (안전하게 처리)
+                df_copy = df.copy()
+                if '마지막_수정일' in df_copy.columns:
+                    # datetime 타입인 경우에만 strftime 적용
+                    if pd.api.types.is_datetime64_any_dtype(df_copy['마지막_수정일']):
+                        df_copy['마지막_수정일'] = df_copy['마지막_수정일'].dt.strftime('%Y-%m-%d')
+                    elif df_copy['마지막_수정일'].dtype == 'object':
+                        # 문자열이 아닌 경우만 변환
+                        df_copy['마지막_수정일'] = df_copy['마지막_수정일'].apply(
+                            lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x)
+                        )
+                
+                # 헤더 포함하여 데이터 준비
+                data = [df_copy.columns.tolist()] + df_copy.values.tolist()
             
             # 시트에 쓰기
             range_name = '투자_노트!A1'
@@ -271,6 +289,8 @@ class InvestmentNotesManager:
                 valueInputOption='RAW',
                 body=body
             ).execute()
+            
+            print(f"✅ 시트 쓰기 완료: {len(data)-1 if len(data) > 1 else 0}개 행")
             
         except Exception as e:
             print(f"❌ 시트 쓰기 실패: {e}")
