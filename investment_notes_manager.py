@@ -327,34 +327,49 @@ class InvestmentNotesManager:
                 print("📝 투자 노트가 비어있어 업데이트할 내용이 없습니다.")
                 return True
             
-            # 포트폴리오에 있는 종목코드 목록
+            # 포트폴리오에 있는 종목코드 목록 (디버깅용)
             portfolio_stocks = set(portfolio_df['종목코드'].astype(str).tolist())
+            print(f"📋 포트폴리오 종목코드들: {portfolio_stocks}")
+            
+            # 투자 노트 종목코드들 (디버깅용)
+            note_stocks = set(notes_df['종목코드'].astype(str).tolist())
+            print(f"📝 투자 노트 종목코드들: {note_stocks}")
             
             # 업데이트된 노트 수
             updated_count = 0
             
             for idx, note in notes_df.iterrows():
-                stock_code = str(note['종목코드'])
-                current_status = note.get('포트폴리오_상태', '관심종목')
+                stock_code = str(note['종목코드']).strip()
+                stock_name = note['종목명']
+                current_status = note.get('포트폴리오_상태', '')
+                
+                print(f"🔍 검사 중: {stock_name} ({stock_code}) - 현재 상태: '{current_status}'")
                 
                 # 포트폴리오에 있는지 확인
                 in_portfolio = stock_code in portfolio_stocks
+                print(f"   포트폴리오 포함 여부: {in_portfolio}")
                 
                 # 상태 변경이 필요한지 확인
                 if in_portfolio and current_status != '보유중':
                     # 포트폴리오에 새로 들어온 경우
                     notes_df.at[idx, '포트폴리오_상태'] = '보유중'
-                    if pd.isna(notes_df.at[idx, '최초_매수일']):
+                    if pd.isna(notes_df.at[idx, '최초_매수일']) or notes_df.at[idx, '최초_매수일'] == '':
                         notes_df.at[idx, '최초_매수일'] = datetime.now().strftime('%Y-%m-%d')
                     updated_count += 1
-                    print(f"✅ {note['종목명']} ({stock_code}): 관심종목 → 보유중")
+                    print(f"✅ {stock_name} ({stock_code}): → 보유중")
                     
                 elif not in_portfolio and current_status == '보유중':
                     # 포트폴리오에서 빠진 경우
                     notes_df.at[idx, '포트폴리오_상태'] = '매도완료'
                     notes_df.at[idx, '최종_매도일'] = datetime.now().strftime('%Y-%m-%d')
                     updated_count += 1
-                    print(f"📉 {note['종목명']} ({stock_code}): 보유중 → 매도완료")
+                    print(f"📉 {stock_name} ({stock_code}): 보유중 → 매도완료")
+                
+                elif not in_portfolio and (current_status == '' or pd.isna(current_status)):
+                    # 빈 상태인 경우 관심종목으로 설정
+                    notes_df.at[idx, '포트폴리오_상태'] = '관심종목'
+                    updated_count += 1
+                    print(f"📝 {stock_name} ({stock_code}): 빈 상태 → 관심종목")
             
             # 변경사항이 있으면 시트에 저장
             if updated_count > 0:
