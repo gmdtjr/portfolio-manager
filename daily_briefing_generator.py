@@ -164,109 +164,74 @@ class DailyBriefingGenerator:
             return {}
     
     def generate_daily_briefing_prompt(self, portfolio_df: pd.DataFrame, exchange_data: Dict = None) -> str:
-        """데일리 브리핑 프롬프트 생성"""
-        today = datetime.now().strftime('%Y년 %m월 %d일')
-        
-        # 포트폴리오 분석
-        total_value = portfolio_df['평가금액(원)'].sum() if '평가금액(원)' in portfolio_df.columns else 0
-        total_profit = portfolio_df['평가손익(원)'].sum() if '평가손익(원)' in portfolio_df.columns else 0
-        total_profit_rate = (total_profit / (total_value - total_profit) * 100) if (total_value - total_profit) > 0 else 0
-        
-        # 계좌별 분석
-        account_analysis = ""
-        if '계좌구분' in portfolio_df.columns and '평가금액(원)' in portfolio_df.columns:
-            account_stats = portfolio_df.groupby('계좌구분').agg({
-                '평가금액(원)': 'sum',
-                '평가손익(원)': 'sum',
-                '수익률': 'mean'
-            }).round(2)
+        """Gemini API를 활용한 지능형 데일리 브리핑 프롬프트 생성"""
+        try:
+            today = datetime.now().strftime('%Y년 %m월 %d일')
             
-            account_analysis = "\n".join([
-                f"- {account}: {stats['평가금액(원)']:,.0f}원 (손익: {stats['평가손익(원)']:+,.0f}원, 수익률: {stats['수익률']:+.2f}%)"
-                for account, stats in account_stats.iterrows()
-            ])
-        
-        # 상위/하위 종목 분석
-        top_gainers = portfolio_df.nlargest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
-        top_losers = portfolio_df.nsmallest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
-        
-        top_gainers_text = "\n".join([
-            f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
-            for _, row in top_gainers.iterrows()
-        ]) if not top_gainers.empty else "없음"
-        
-        top_losers_text = "\n".join([
-            f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
-            for _, row in top_losers.iterrows()
-        ]) if not top_losers.empty else "없음"
-        
-        # 섹터별 분석
-        sector_analysis = ""
-        if '종목명' in portfolio_df.columns and '평가금액(원)' in portfolio_df.columns:
-            # 간단한 섹터 분류 (실제로는 더 정교한 분류 필요)
-            def classify_sector(stock_name):
-                name = str(stock_name).upper()
-                if any(word in name for word in ['삼성', 'SK', 'LG', '현대', '기아', '포스코']):
-                    return '대형주'
-                elif any(word in name for word in ['바이오', '제약', '의료']):
-                    return '헬스케어'
-                elif any(word in name for word in ['반도체', '전자', 'IT']):
-                    return 'IT/반도체'
-                elif any(word in name for word in ['은행', '증권', '보험']):
-                    return '금융'
-                elif any(word in name for word in ['에너지', '화학', '철강']):
-                    return '에너지/화학'
-                else:
-                    return '기타'
+            # 포트폴리오 분석
+            total_value = portfolio_df['평가금액(원)'].sum() if '평가금액(원)' in portfolio_df.columns else 0
+            total_profit = portfolio_df['평가손익(원)'].sum() if '평가손익(원)' in portfolio_df.columns else 0
+            total_profit_rate = (total_profit / (total_value - total_profit) * 100) if (total_value - total_profit) > 0 else 0
             
-            portfolio_df['섹터'] = portfolio_df['종목명'].apply(classify_sector)
-            sector_stats = portfolio_df.groupby('섹터').agg({
-                '평가금액(원)': 'sum',
-                '평가손익(원)': 'sum',
-                '수익률': 'mean'
-            }).round(2)
+            # 상위/하위 종목 분석
+            top_gainers = portfolio_df.nlargest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
+            top_losers = portfolio_df.nsmallest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
             
-            sector_analysis = "\n".join([
-                f"- {sector}: {stats['평가금액(원)']:,.0f}원 (손익: {stats['평가손익(원)']:+,.0f}원, 수익률: {stats['수익률']:+.2f}%)"
-                for sector, stats in sector_stats.iterrows()
-            ])
-        
-        # 환율 정보
-        exchange_info = ""
-        if exchange_data:
-            exchange_info = "\n".join([
-                f"- {key}: {value}"
-                for key, value in exchange_data.items()
-            ])
-        
-        # 투자 노트 정보 (있는 경우)
-        notes_summary = ""
-        if self.notes_manager:
-            try:
-                portfolio_notes = self.notes_manager.get_notes_by_portfolio(portfolio_df)
-                if not portfolio_notes.empty:
-                    notes_summary = "\n### 📝 투자 노트 요약\n"
-                    for _, note in portfolio_notes.iterrows():
-                        conviction = note.get('투자 확신도 (Conviction)', '미설정')
-                        sector = note.get('섹터/산업 (Sector/Industry)', '미설정')
-                        notes_summary += f"- {note['종목명']}: {conviction} 확신도, {sector}\n"
-            except Exception as e:
-                print(f"⚠️ 투자 노트 읽기 실패: {e}")
-        
-        prompt = f"""# 📊 데일리 브리핑 프롬프트 ({today})
+            top_gainers_text = "\n".join([
+                f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
+                for _, row in top_gainers.iterrows()
+            ]) if not top_gainers.empty else "없음"
+            
+            top_losers_text = "\n".join([
+                f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
+                for _, row in top_losers.iterrows()
+            ]) if not top_losers.empty else "없음"
+            
+            # 보유 종목 목록
+            portfolio_holdings = []
+            for _, row in portfolio_df.iterrows():
+                if pd.notna(row['종목코드']) and pd.notna(row['종목명']):
+                    if str(row['종목코드']).startswith('A'):  # 해외주식
+                        market = "나스닥" if "NASDAQ" in str(row['종목명']).upper() else "뉴욕거래소"
+                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+                    else:  # 국내주식
+                        market = "코스닥" if len(str(row['종목코드'])) == 6 else "코스피"
+                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+            
+            portfolio_holdings_text = "\n".join(portfolio_holdings) if portfolio_holdings else "* [포트폴리오 데이터 없음]"
+            
+            # 투자 노트 정보 (있는 경우)
+            notes_summary = ""
+            if self.notes_manager:
+                try:
+                    portfolio_notes = self.notes_manager.get_notes_by_portfolio(portfolio_df)
+                    if not portfolio_notes.empty:
+                        notes_summary = "\n### 📝 투자 노트 정보\n"
+                        for _, note in portfolio_notes.iterrows():
+                            conviction = note.get('투자 확신도 (Conviction)', '미설정')
+                            sector = note.get('섹터/산업 (Sector/Industry)', '미설정')
+                            thesis = note.get('투자 아이디어 (Thesis)', '미설정')
+                            notes_summary += f"- {note['종목명']}: {conviction} 확신도, {sector}, {thesis}\n"
+                except Exception as e:
+                    print(f"⚠️ 투자 노트 읽기 실패: {e}")
+            
+            # 환율 정보
+            exchange_info = ""
+            if exchange_data:
+                exchange_info = "\n".join([
+                    f"- {key}: {value}"
+                    for key, value in exchange_data.items()
+                ])
+            
+            # Gemini API에 전달할 메타 프롬프트
+            meta_prompt = f"""너는 최고의 퀀트 애널리스트이자 리서치 전문가야. 나의 개인 투자 비서로서, 아래 정보를 바탕으로 Google Deep Research에 사용할 가장 효과적인 데일리 브리핑 분석 프롬프트 1개를 생성해 줘.
 
-## 🎯 목적
-오늘의 포트폴리오 현황과 시장 상황을 종합적으로 분석하여, 투자 결정에 도움이 되는 인사이트를 제공하는 데일리 브리핑을 작성해주세요.
+## 📊 나의 현재 포트폴리오 현황 ({today})
 
-## 📈 포트폴리오 현황
-
-### 📊 전체 포트폴리오 개요
-- **총 평가금액**: {total_value:,.0f}원
-- **총 평가손익**: {total_profit:+,.0f}원
-- **전체 수익률**: {total_profit_rate:+.2f}%
-
-### 🏦 계좌별 현황
-{account_analysis}
+### 📈 포트폴리오 개요
+- 총 평가금액: {total_value:,.0f}원
+- 총 평가손익: {total_profit:+,.0f}원
+- 전체 수익률: {total_profit_rate:+.2f}%
 
 ### 📈 상위 수익 종목 (Top 3)
 {top_gainers_text}
@@ -274,71 +239,88 @@ class DailyBriefingGenerator:
 ### 📉 하위 수익 종목 (Bottom 3)
 {top_losers_text}
 
-### 🏭 섹터별 분포
-{sector_analysis}
+### 📋 보유 종목 목록
+{portfolio_holdings_text}
 
 ### 💱 환율 정보
 {exchange_info if exchange_info else "환율 정보 없음"}
 
 {notes_summary}
 
-## 📋 브리핑 작성 가이드
+## 🎯 지시사항
 
-### 1. **포트폴리오 성과 분석**
-- 전체 포트폴리오의 수익률과 주요 변동 요인
-- 상위/하위 수익 종목들의 성과 분석
-- 섹터별 성과와 분산도 평가
+위 모든 정보를 종합적으로 고려하여, 현재 나에게 가장 필요하고 시의성 높은 주제로 **Google Deep Research용 데일리 브리핑 프롬프트**를 생성해 줘.
 
-### 2. **시장 상황 분석**
-- 전일 주요 지수 동향 (코스피, 코스닥, 나스닥, S&P500 등)
-- 주요 섹터별 시장 동향
-- 환율, 원유, 금 등 주요 자산 가격 변동
+### 📋 프롬프트 생성 요구사항:
 
-### 3. **투자 노트 연계 분석** (투자 노트가 있는 경우)
-- 투자 확신도별 종목들의 성과 검증
-- 투자 아이디어의 유효성 평가
-- 리스크 관리 현황 점검
+1. **포트폴리오 중심 분석**: 내 보유 종목들의 성과와 투자 아이디어 검증에 집중
+2. **투자 노트 연계**: 투자 노트가 있는 종목들의 투자 확신도와 아이디어 유효성 검증
+3. **시장 맥락 분석**: 현재 시장 상황과 내 포트폴리오의 연관성
+4. **실행 가능한 인사이트**: 구체적인 투자 전략과 리스크 관리 방안 제시
+5. **시의성**: 오늘의 주요 이벤트와 경제 지표 발표 고려
 
-### 4. **투자 전략 제언**
-- 포트폴리오 리밸런싱 필요성
-- 추가 투자 고려 종목
-- 리스크 관리 방안
+### 📝 출력 형식:
 
-### 5. **오늘의 주목 포인트**
-- 주요 경제 지표 발표
-- 기업 실적 발표
-- 정책 이슈
-- 글로벌 이벤트
+다음 형식으로 **Google Deep Research에 바로 입력할 수 있는 완성된 프롬프트**를 생성해줘:
 
-## 📝 출력 형식
+```
+# 📊 데일리 브리핑 분석 요청
 
-다음 형식으로 데일리 브리핑을 작성해주세요:
+## 🎯 분석 목적
+[분석의 핵심 목적과 기대 효과]
 
-### 📊 포트폴리오 현황
-[포트폴리오 성과 요약]
+## 📈 분석 대상
+[분석할 주요 종목이나 섹터]
 
-### 🌍 시장 동향
-[전일 시장 동향 분석]
+## 🔍 분석 관점
+[어떤 관점에서 분석할지 명시]
 
-### 💡 투자 인사이트
-[주요 투자 포인트]
+## 📋 구체적 분석 요청사항
+1. [첫 번째 분석 요청]
+2. [두 번째 분석 요청]
+3. [세 번째 분석 요청]
 
-### 🎯 투자 전략
-[구체적인 투자 전략 제언]
+## 💡 기대 인사이트
+[이 분석을 통해 얻고자 하는 인사이트]
 
-### 📅 오늘의 주목 포인트
-[주요 이벤트 및 지표]
+## 📅 시의성 고려사항
+[오늘의 주요 이벤트나 지표]
+```
 
-## 💡 작성 시 주의사항
-- 객관적이고 데이터 기반의 분석 제공
-- 포트폴리오 특성에 맞는 맞춤형 인사이트
-- 실행 가능한 투자 전략 제시
-- 리스크 관리 관점 포함
-- 간결하고 명확한 문체 사용
-
-이제 위 정보를 바탕으로 오늘의 데일리 브리핑을 작성해주세요."""
-        
-        return prompt
+**중요**: 생성된 프롬프트는 Google Deep Research에 바로 복사해서 사용할 수 있어야 하며, 내 포트폴리오의 현재 상황과 투자 노트를 반영한 맞춤형 분석을 요청하는 내용이어야 해."""
+            
+            # Gemini API 호출
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=meta_prompt
+            )
+            
+            # 응답 텍스트 안전하게 추출
+            try:
+                response_text = response.text
+                if response_text:
+                    return response_text
+                else:
+                    return "Gemini API 응답이 비어있습니다."
+            except Exception as text_error:
+                print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                
+                # 새로운 API의 fallback 방법 시도
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                            part = candidate.content.parts[0]
+                            if hasattr(part, 'text'):
+                                response_text = part.text
+                                if response_text:
+                                    return response_text
+                
+                return "Gemini API 응답 처리 중 오류가 발생했습니다."
+                
+        except Exception as e:
+            print(f"❌ 지능형 프롬프트 생성 실패: {e}")
+            return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
     
     def generate_ai_research_questions(self, df: pd.DataFrame) -> str:
         """AI가 포트폴리오 데이터를 분석하여 Deep Research용 질문들을 생성"""
@@ -1072,9 +1054,9 @@ Subject: Advanced Deep Research Question Generation with Investment Notes (Date:
             return f"고급 AI 질문 생성 중 오류가 발생했습니다: {str(e)}"
 
 def main():
-    """메인 함수"""
-    st.title("📊 데일리 브리핑 프롬프트 생성기")
-    st.markdown("포트폴리오 데이터를 분석하여 데일리 브리핑 프롬프트를 생성합니다.")
+    """메인 함수 - Gemini API 기반 지능형 데일리 브리핑 프롬프트 생성기"""
+    st.title("🤖 지능형 데일리 브리핑 프롬프트 생성기")
+    st.markdown("Gemini API를 활용하여 포트폴리오 데이터를 분석하고 맞춤형 Deep Research 프롬프트를 생성합니다.")
     
     # 사이드바 설정
     st.sidebar.title("⚙️ 설정")
@@ -1089,17 +1071,33 @@ def main():
         return os.getenv(key)
     
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
+    google_api_key = get_secret('GOOGLE_API_KEY')
     
     if not spreadsheet_id:
         st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
         return
     
+    if not google_api_key:
+        st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다.")
+        st.info("💡 지능형 프롬프트 생성을 위해 GOOGLE_API_KEY가 필요합니다.")
+        return
+    
+    # 기능 설명
+    st.info("""
+    **🤖 지능형 데일리 브리핑 프롬프트 생성기**
+    • Gemini API를 활용한 동적 프롬프트 생성
+    • 포트폴리오 현황 분석 (수익률, 상위/하위 종목, 섹터별 분포)
+    • 투자 노트 연계 분석 (투자 확신도, 아이디어 유효성)
+    • 시의성 높은 맞춤형 분석 요청 프롬프트 생성
+    • 생성된 프롬프트를 Gemini Deep Research에 수동 입력하여 보고서 생성
+    """)
+    
     # 브리핑 생성 버튼
-    if st.button("📊 데일리 브리핑 프롬프트 생성", type="primary"):
+    if st.button("🤖 지능형 데일리 브리핑 프롬프트 생성", type="primary", use_container_width=True):
         try:
-            with st.spinner("포트폴리오 데이터를 분석하고 데일리 브리핑 프롬프트를 생성하고 있습니다..."):
+            with st.spinner("Gemini API를 활용하여 지능형 데일리 브리핑 프롬프트를 생성하고 있습니다..."):
                 # 브리핑 생성기 초기화
-                generator = DailyBriefingGenerator(spreadsheet_id)
+                generator = DailyBriefingGenerator(spreadsheet_id, google_api_key)
                 
                 # 포트폴리오 데이터 읽기
                 st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
@@ -1109,25 +1107,25 @@ def main():
                 st.info("💱 환율 정보를 읽고 있습니다...")
                 exchange_data = generator.read_exchange_rate_data()
                 
-                # 데일리 브리핑 프롬프트 생성
-                st.info("📝 데일리 브리핑 프롬프트를 생성하고 있습니다...")
+                # Gemini API를 활용한 지능형 프롬프트 생성
+                st.info("🤖 Gemini API를 활용하여 맞춤형 프롬프트를 생성하고 있습니다...")
                 briefing_prompt = generator.generate_daily_briefing_prompt(portfolio_df, exchange_data)
                 
                 # 결과 표시
-                st.success("✅ 데일리 브리핑 프롬프트가 생성되었습니다!")
+                st.success("✅ 지능형 데일리 브리핑 프롬프트가 생성되었습니다!")
                 
                 # 탭으로 구분하여 표시
-                tab1, tab2, tab3 = st.tabs(["📊 데일리 브리핑 프롬프트", "📈 포트폴리오 데이터", "💱 환율 정보"])
+                tab1, tab2, tab3 = st.tabs(["🤖 생성된 프롬프트", "📈 포트폴리오 데이터", "💱 환율 정보"])
                 
                 with tab1:
                     st.markdown("### 📋 Gemini Deep Research에 복사할 프롬프트")
-                    st.text_area("데일리 브리핑 프롬프트", briefing_prompt, height=600)
+                    st.text_area("지능형 데일리 브리핑 프롬프트", briefing_prompt, height=600)
                     
                     # 복사 버튼
                     if st.button("📋 프롬프트 복사", key="copy_prompt"):
                         st.write("프롬프트가 클립보드에 복사되었습니다.")
                     
-                    st.info("💡 이 프롬프트를 Gemini Deep Research에 붙여넣어 데일리 브리핑을 생성하세요.")
+                    st.info("💡 이 프롬프트를 Gemini Deep Research에 붙여넣어 맞춤형 데일리 브리핑을 생성하세요.")
                 
                 with tab2:
                     st.dataframe(portfolio_df, use_container_width=True)
