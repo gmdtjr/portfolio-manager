@@ -7,13 +7,6 @@ from datetime import datetime
 import time
 from portfolio_manager import KoreaInvestmentAPI, GoogleSheetsManager, Account, ExchangeRateAPI
 
-# Deep Research 질문 생성기 import
-try:
-    from daily_briefing_generator import DeepResearchQuestionGenerator
-    DEEP_RESEARCH_AVAILABLE = True
-except ImportError:
-    DEEP_RESEARCH_AVAILABLE = False
-
 # 데일리 브리핑 생성기 import
 try:
     from daily_briefing_generator import DailyBriefingGenerator
@@ -156,7 +149,7 @@ def sync_investment_notes():
             
             # 포트폴리오 데이터 읽기
             st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
-            generator = DeepResearchQuestionGenerator(spreadsheet_id)
+            generator = DailyBriefingGenerator(spreadsheet_id)
             portfolio_df = generator.read_portfolio_data()
             
             if portfolio_df.empty:
@@ -351,7 +344,7 @@ def main():
     st.sidebar.title("📄 페이지 선택")
     page = st.sidebar.selectbox(
         "원하는 기능을 선택하세요",
-        ["🔄 포트폴리오 업데이트", "📊 데일리 브리핑 프롬프트", "🤖 Deep Research 질문 생성", "📝 투자 노트 자동 생성"],
+        ["🔄 포트폴리오 업데이트", "📊 데일리 브리핑 프롬프트", "📝 투자 노트 자동 생성"],
         help="각 기능을 선택하여 포트폴리오 관리 작업을 수행하세요"
     )
     
@@ -412,6 +405,9 @@ def main():
     if 'last_update' in st.session_state:
         st.sidebar.subheader("📅 최근 업데이트")
         st.sidebar.text(st.session_state.last_update)
+    
+    # 페이지별 컨텐츠
+    if page == "🔄 포트폴리오 업데이트":
         # 메인 컨텐츠
         st.header("🔄 포트폴리오 업데이트")
         st.markdown("한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
@@ -528,114 +524,9 @@ def main():
                             st.info("환율 정보가 없습니다.")
                     
             except Exception as e:
-                st.error(f"❌ 프롬프트 생성 실패: {e}")
-                import traceback
-                st.error(f"상세 오류: {traceback.format_exc()}")
-    
-    elif page == "🤖 Deep Research 질문 생성":
-        if not DEEP_RESEARCH_AVAILABLE:
-            st.error("❌ Deep Research 질문 생성 기능을 사용할 수 없습니다.")
-            st.info("💡 필요한 모듈이 설치되지 않았습니다.")
-            return
-        
-        st.header("🤖 Deep Research 질문 생성")
-        st.markdown("포트폴리오 데이터와 투자 노트를 분석하여 Deep Research에 던질 최적의 질문들을 생성합니다.")
-        
-        # 환경변수 확인
-        def get_secret(key):
-            try:
-                return st.secrets[key]
-            except:
-                return os.getenv(key)
-        
-        spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
-        google_api_key = get_secret('GOOGLE_API_KEY')
-        
-        if not spreadsheet_id:
-            st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
-            return
-        
-        if not google_api_key:
-            st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다.")
-            st.info("💡 Deep Research 질문 생성을 위해 GOOGLE_API_KEY가 필요합니다.")
-            return
-        
-        # 기능 설명
-        st.subheader("💡 기능 설명")
-        st.info("""
-        **🤖 Deep Research 질문 생성**
-        • 포트폴리오 특화 전략적 질문 생성
-        • 투자 노트 연계 고급 분석
-        • 시장 맥락 및 미래 지향 질문
-        • 우선순위별 질문 분류
-        """)
-        
-        # 질문 생성 옵션
-        st.subheader("🔧 질문 생성 옵션")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            use_investment_notes = st.checkbox("투자 노트 활용", value=True, help="투자 노트가 있는 종목들에 대해 더 상세한 질문을 생성합니다")
-        with col2:
-            question_type = st.selectbox(
-                "질문 유형",
-                ["기본 질문", "고급 질문 (투자 노트 활용)"],
-                help="고급 질문은 투자 노트의 투자 아이디어, 확신도, 리스크 등을 고려합니다"
-            )
-        
-        # 질문 생성 버튼
-        st.subheader("🚀 질문 생성")
-        if st.button("🤖 Deep Research 질문 생성", type="primary", use_container_width=True):
-            try:
-                with st.spinner("포트폴리오 데이터를 분석하고 질문들을 생성하고 있습니다..."):
-                    # 질문 생성기 초기화
-                    generator = DeepResearchQuestionGenerator(spreadsheet_id)
-                    
-                    # 포트폴리오 데이터 읽기
-                    st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
-                    portfolio_df = generator.read_portfolio_data()
-                    
-                    # AI 질문 생성
-                    st.info("🤖 Deep Research용 질문들을 생성하고 있습니다... (시간이 걸릴 수 있습니다)")
-                    
-                    if question_type == "고급 질문 (투자 노트 활용)" and use_investment_notes:
-                        # 투자 노트를 활용한 고급 질문 생성
-                        ai_questions = generator.generate_advanced_ai_research_questions(portfolio_df)
-                    else:
-                        # 기본 질문 생성
-                        ai_questions = generator.generate_ai_research_questions(portfolio_df)
-                    
-                    # 결과 표시
-                    st.success("✅ Deep Research용 질문들이 생성되었습니다!")
-                    
-                    # 탭으로 구분하여 표시
-                    tab1, tab2, tab3 = st.tabs(["🤖 생성된 질문들", "📝 메타 프롬프트", "📊 포트폴리오 데이터"])
-                    
-                    with tab1:
-                        st.markdown(ai_questions)
-                        
-                        # 복사 버튼
-                        if st.button("📋 질문들 복사", key="copy_questions"):
-                            st.write("질문들이 클립보드에 복사되었습니다.")
-                    
-                    with tab2:
-                        if question_type == "고급 질문 (투자 노트 활용)" and use_investment_notes:
-                            meta_prompt = generator.generate_advanced_deep_research_questions(portfolio_df)
-                        else:
-                            meta_prompt = generator.generate_deep_research_questions(portfolio_df)
-                        
-                        st.text_area("메타 프롬프트", meta_prompt, height=400)
-                        
-                        if st.button("📋 메타 프롬프트 복사", key="copy_meta_prompt"):
-                            st.write("메타 프롬프트가 클립보드에 복사되었습니다.")
-                    
-                    with tab3:
-                        st.dataframe(portfolio_df, use_container_width=True)
-                    
-            except Exception as e:
-                st.error(f"❌ 질문 생성 실패: {e}")
-                import traceback
-                st.error(f"상세 오류: {traceback.format_exc()}")
+                    st.error(f"❌ 프롬프트 생성 실패: {e}")
+                    import traceback
+                    st.error(f"상세 오류: {traceback.format_exc()}")
     
     elif page == "📝 투자 노트 자동 생성":
         if not INVESTMENT_NOTE_GENERATOR_AVAILABLE:
