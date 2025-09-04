@@ -74,6 +74,96 @@ class DailyBriefingGenerator:
             print(f"❌ Gemini API 설정 실패: {e}")
             raise
     
+    def read_portfolio_data(self) -> pd.DataFrame:
+        """구글 스프레드시트에서 포트폴리오 데이터 읽기"""
+        try:
+            # 사용 가능한 시트 확인
+            spreadsheet = self.service.spreadsheets().get(
+                spreadsheetId=self.spreadsheet_id
+            ).execute()
+            
+            sheet_names = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
+            print(f"📋 사용 가능한 시트: {sheet_names}")
+            
+            # Portfolio 시트가 있으면 사용, 없으면 첫 번째 시트 사용
+            if 'Portfolio' in sheet_names:
+                range_name = 'Portfolio!A:L'
+                print("📊 'Portfolio' 시트를 사용합니다.")
+            elif sheet_names:
+                range_name = f'{sheet_names[0]}!A:L'
+                print(f"📊 '{sheet_names[0]}' 시트를 사용합니다.")
+            else:
+                raise Exception("사용 가능한 시트가 없습니다.")
+            
+            # 데이터 읽기
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            values = result.get('values', [])
+            if not values:
+                raise Exception("스프레드시트에 데이터가 없습니다.")
+            
+            # 데이터프레임 생성
+            df = pd.DataFrame(values[1:], columns=values[0])
+            
+            # 숫자 컬럼 변환
+            numeric_columns = ['보유수량', '매입평균가', '매입금액(원)', '현재가', '평가금액(원)', '평가손익(원)', '수익률', '비중']
+            for col in numeric_columns:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            print(f"✅ 포트폴리오 데이터 읽기 완료: {len(df)}개 종목")
+            return df
+            
+        except Exception as e:
+            print(f"❌ 포트폴리오 데이터 읽기 실패: {e}")
+            raise
+    
+    def read_exchange_rate_data(self) -> Dict:
+        """환율 정보 데이터 읽기"""
+        try:
+            # 환율정보 시트 확인
+            spreadsheet = self.service.spreadsheets().get(
+                spreadsheetId=self.spreadsheet_id
+            ).execute()
+            
+            sheet_names = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
+            
+            if '환율정보' not in sheet_names:
+                print("⚠️ 환율정보 시트가 없습니다.")
+                return {}
+            
+            # 환율정보 데이터 읽기
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range='환율정보!A:Z'
+            ).execute()
+            
+            values = result.get('values', [])
+            if not values:
+                print("⚠️ 환율정보 데이터가 없습니다.")
+                return {}
+            
+            # 데이터프레임 생성
+            df = pd.DataFrame(values[1:], columns=values[0])
+            
+            # 최신 환율 정보 추출
+            exchange_data = {}
+            if not df.empty:
+                latest_row = df.iloc[-1]  # 가장 최근 데이터
+                for col in df.columns:
+                    if '환율' in col or 'USD' in col or '달러' in col:
+                        exchange_data[col] = latest_row[col]
+            
+            print(f"✅ 환율 정보 읽기 완료: {len(exchange_data)}개 항목")
+            return exchange_data
+            
+        except Exception as e:
+            print(f"❌ 환율 정보 읽기 실패: {e}")
+            return {}
+    
     def get_data_as_csv(self, sheet_name: str) -> str:
         """구글 시트에서 데이터를 읽어 CSV 문자열로 반환"""
         try:
