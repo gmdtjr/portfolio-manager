@@ -204,6 +204,98 @@ class DailyBriefingGenerator:
 
 **요청:** 위 투자 노트를 바탕으로 Google Deep Research에 바로 입력할 수 있는 간결하고 구체적인 분석 프롬프트를 생성해줘. 투자 아이디어 검증과 리스크 관리에 집중해줘."""
                 
+                # 프롬프트 미리보기 반환 (API 호출 전)
+                return f"""# 🤖 Gemini API 요청 프롬프트 미리보기
+
+## 📋 전송될 프롬프트 내용:
+```
+{meta_prompt}
+```
+
+## 💡 프롬프트 분석:
+- **길이**: {len(meta_prompt)}자
+- **투자 노트 수**: {len(notes_list) if 'notes_list' in locals() else 0}개
+- **예상 API 응답 시간**: 5-15초
+
+## ⚠️ 주의사항:
+- 이 프롬프트는 Gemini API에 전송됩니다
+- 무료 티어는 분당 2회 요청으로 제한됩니다
+- 실제 API 호출을 원하시면 '실제 API 호출' 버튼을 클릭하세요"""
+                
+                # 응답 텍스트 안전하게 추출
+                try:
+                    response_text = response.text
+                    if response_text:
+                        return response_text
+                    else:
+                        return "Gemini API 응답이 비어있습니다."
+                except Exception as text_error:
+                    print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                    
+                    # 새로운 API의 fallback 방법 시도
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                part = candidate.content.parts[0]
+                                if hasattr(part, 'text'):
+                                    response_text = part.text
+                                    if response_text:
+                                        return response_text
+                    
+                    return "Gemini API 응답 처리 중 오류가 발생했습니다."
+                    
+            except Exception as e:
+                error_str = str(e)
+                if "503" in error_str and "UNAVAILABLE" in error_str:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # 지수적 백오프
+                        print(f"⚠️ Gemini API 503 오류 발생. {delay}초 후 재시도 중... (시도 {attempt + 1}/{max_retries})")
+                        import time
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"❌ 최대 재시도 횟수 초과. Gemini API 서버 과부하 상태입니다.")
+                        return "Gemini API 서버가 과부하 상태입니다. 잠시 후 다시 시도해주세요."
+                else:
+                    print(f"❌ 지능형 프롬프트 생성 실패: {e}")
+                    return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
+        
+        return "알 수 없는 오류가 발생했습니다."
+    
+    def generate_daily_briefing_prompt_with_api(self, portfolio_df: pd.DataFrame, exchange_data: Dict = None) -> str:
+        """Gemini API를 실제로 호출하여 데일리 브리핑 프롬프트 생성"""
+        max_retries = 8  # 429 오류 대응을 위해 증가
+        base_delay = 2  # 초기 대기 시간 (초)
+        
+        for attempt in range(max_retries):
+            try:
+                today = datetime.now().strftime('%Y년 %m월 %d일')
+                
+                # 투자 노트 정보 (상세화)
+                notes_summary = ""
+                if self.notes_manager:
+                    try:
+                        portfolio_notes = self.notes_manager.get_notes_by_portfolio(portfolio_df)
+                        if not portfolio_notes.empty:
+                            notes_list = []
+                            for _, note in portfolio_notes.iterrows():
+                                conviction = note.get('투자 확신도 (Conviction)', '미설정')
+                                thesis = note.get('투자 아이디어 (Thesis)', '미설정')
+                                risks = note.get('핵심 리스크 (Risks)', '미설정')
+                                notes_list.append(f"{note['종목명']}({conviction}): {thesis[:50]}... / 리스크: {risks[:30]}...")
+                            notes_summary = "\n".join(notes_list)
+                    except Exception as e:
+                        print(f"⚠️ 투자 노트 읽기 실패: {e}")
+                
+                # Gemini API에 전달할 메타 프롬프트 (투자 노트 중심)
+                meta_prompt = f"""너는 투자 분석 전문가야. 아래 투자 노트 정보를 바탕으로 Google Deep Research용 데일리 브리핑 프롬프트를 생성해줘.
+
+**투자 노트 ({today}):**
+{notes_summary if notes_summary else "투자 노트 없음"}
+
+**요청:** 위 투자 노트를 바탕으로 Google Deep Research에 바로 입력할 수 있는 간결하고 구체적인 분석 프롬프트를 생성해줘. 투자 아이디어 검증과 리스크 관리에 집중해줘."""
+                
                 # Gemini API 호출
                 response = self.client.models.generate_content(
                     model=self.model_name,
@@ -245,6 +337,17 @@ class DailyBriefingGenerator:
                     else:
                         print(f"❌ 최대 재시도 횟수 초과. Gemini API 서버 과부하 상태입니다.")
                         return "Gemini API 서버가 과부하 상태입니다. 잠시 후 다시 시도해주세요."
+                elif "429" in error_str and "RESOURCE_EXHAUSTED" in error_str:
+                    if attempt < max_retries - 1:
+                        # 429 오류는 더 긴 대기 시간 필요 (분당 제한 때문)
+                        delay = 60 + (attempt * 30)  # 60초 + 30초씩 증가
+                        print(f"⚠️ Gemini API 429 오류 발생 (무료 티어 제한). {delay}초 후 재시도 중... (시도 {attempt + 1}/{max_retries})")
+                        import time
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"❌ 최대 재시도 횟수 초과. 무료 티어 분당 요청 제한에 도달했습니다.")
+                        return "Gemini API 무료 티어 분당 요청 제한에 도달했습니다. 1분 후 다시 시도해주세요."
                 else:
                     print(f"❌ 지능형 프롬프트 생성 실패: {e}")
                     return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
@@ -1024,7 +1127,7 @@ def main():
     # 브리핑 생성 버튼
     if st.button("🤖 지능형 데일리 브리핑 프롬프트 생성", type="primary", use_container_width=True):
         try:
-            with st.spinner("Gemini API를 활용하여 지능형 데일리 브리핑 프롬프트를 생성하고 있습니다..."):
+            with st.spinner("포트폴리오 데이터를 분석하고 프롬프트를 준비하고 있습니다..."):
                 # 브리핑 생성기 초기화
                 generator = DailyBriefingGenerator(spreadsheet_id, google_api_key)
                 
@@ -1036,25 +1139,38 @@ def main():
                 st.info("💱 환율 정보를 읽고 있습니다...")
                 exchange_data = generator.read_exchange_rate_data()
                 
-                # Gemini API를 활용한 지능형 프롬프트 생성
-                st.info("🤖 Gemini API를 활용하여 맞춤형 프롬프트를 생성하고 있습니다...")
-                briefing_prompt = generator.generate_daily_briefing_prompt(portfolio_df, exchange_data)
+                # 프롬프트 미리보기 생성
+                st.info("📝 프롬프트 미리보기를 생성하고 있습니다...")
+                preview_result = generator.generate_daily_briefing_prompt(portfolio_df, exchange_data)
                 
                 # 결과 표시
-                st.success("✅ 지능형 데일리 브리핑 프롬프트가 생성되었습니다!")
+                st.success("✅ 프롬프트 미리보기가 생성되었습니다!")
                 
                 # 탭으로 구분하여 표시
-                tab1, tab2, tab3 = st.tabs(["🤖 생성된 프롬프트", "📈 포트폴리오 데이터", "💱 환율 정보"])
+                tab1, tab2, tab3 = st.tabs(["🤖 프롬프트 미리보기", "📈 포트폴리오 데이터", "💱 환율 정보"])
                 
                 with tab1:
-                    st.markdown("### 📋 Gemini Deep Research에 복사할 프롬프트")
-                    st.text_area("지능형 데일리 브리핑 프롬프트", briefing_prompt, height=600)
+                    st.markdown(preview_result)
                     
-                    # 복사 버튼
-                    if st.button("📋 프롬프트 복사", key="copy_prompt"):
-                        st.write("프롬프트가 클립보드에 복사되었습니다.")
-                    
-                    st.info("💡 이 프롬프트를 Gemini Deep Research에 붙여넣어 맞춤형 데일리 브리핑을 생성하세요.")
+                    # 실제 API 호출 버튼
+                    st.subheader("🚀 실제 API 호출")
+                    if st.button("🤖 Gemini API 호출하여 프롬프트 생성", type="secondary", use_container_width=True):
+                        try:
+                            with st.spinner("Gemini API를 호출하여 지능형 프롬프트를 생성하고 있습니다..."):
+                                # 실제 API 호출
+                                api_result = generator.generate_daily_briefing_prompt_with_api(portfolio_df, exchange_data)
+                                
+                                st.success("✅ Gemini API 호출 완료!")
+                                st.markdown("### 📋 생성된 프롬프트")
+                                st.text_area("Gemini Deep Research용 프롬프트", api_result, height=400)
+                                
+                                # 복사 버튼
+                                if st.button("📋 프롬프트 복사", key="copy_api_prompt"):
+                                    st.write("프롬프트가 클립보드에 복사되었습니다.")
+                                
+                                st.info("💡 이 프롬프트를 Gemini Deep Research에 붙여넣어 맞춤형 데일리 브리핑을 생성하세요.")
+                        except Exception as api_error:
+                            st.error(f"❌ API 호출 실패: {api_error}")
                 
                 with tab2:
                     st.dataframe(portfolio_df, use_container_width=True)
