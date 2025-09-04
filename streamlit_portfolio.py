@@ -453,11 +453,11 @@ def main():
             return
         
         st.header("📊 데일리 브리핑 프롬프트 생성")
-        st.markdown("CSV 파일을 Gemini API에 직접 업로드하여 맞춤형 Deep Research 프롬프트를 생성합니다.")
+        st.markdown("CSV 데이터를 프롬프트에 포함하여 맞춤형 Deep Research 프롬프트를 생성합니다.")
         
         st.info("""
-        **🤖 CSV 업로드 방식 데일리 브리핑 프롬프트 생성기**
-        • 구글 시트 데이터를 CSV로 변환하여 Gemini API에 직접 업로드
+        **🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성기**
+        • 구글 시트 데이터를 CSV로 변환하여 프롬프트에 직접 포함
         • 포트폴리오 현황과 투자 노트를 구조화된 데이터로 분석
         • 프롬프트 길이 대폭 단축으로 API 부하 감소
         • 더 정확하고 구체적인 분석 프롬프트 생성
@@ -489,9 +489,9 @@ def main():
         
         # 브리핑 생성 버튼
         st.subheader("🚀 브리핑 생성")
-        if st.button("🤖 CSV 업로드 방식 데일리 브리핑 프롬프트 생성", type="primary", use_container_width=True):
+        if st.button("🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성", type="primary", use_container_width=True):
             try:
-                with st.spinner("CSV 파일을 생성하고 Gemini API에 업로드하여 프롬프트를 생성하고 있습니다..."):
+                with st.spinner("CSV 데이터를 프롬프트에 포함하여 프롬프트를 생성하고 있습니다..."):
                     # 브리핑 생성기 초기화
                     generator = DailyBriefingGenerator(spreadsheet_id)
                     
@@ -508,14 +508,14 @@ def main():
                     briefing_prompt = generator.generate_daily_briefing_prompt(portfolio_df, exchange_data)
                     
                     # 결과 표시
-                    st.success("✅ CSV 업로드 방식 데일리 브리핑 프롬프트가 생성되었습니다!")
+                    st.success("✅ CSV 데이터 포함 방식 데일리 브리핑 프롬프트가 생성되었습니다!")
                     
                     # 탭으로 구분하여 표시
                     tab1, tab2, tab3 = st.tabs(["🤖 생성된 프롬프트", "📈 포트폴리오 데이터", "💱 환율 정보"])
                     
                     with tab1:
                         st.markdown("### 📋 Gemini Deep Research에 복사할 프롬프트")
-                        st.text_area("CSV 업로드 방식 데일리 브리핑 프롬프트", briefing_prompt, height=600)
+                        st.text_area("CSV 데이터 포함 방식 데일리 브리핑 프롬프트", briefing_prompt, height=600)
                         
                         # 복사 버튼
                         if st.button("📋 프롬프트 복사", key="copy_briefing_prompt"):

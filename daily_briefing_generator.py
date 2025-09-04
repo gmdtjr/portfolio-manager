@@ -8,7 +8,6 @@ from googleapiclient.discovery import build
 from google import genai
 from google.genai import types
 from typing import List, Dict, Optional
-import tempfile
 import time
 
 # 투자 노트 매니저 import
@@ -19,7 +18,7 @@ except ImportError:
     INVESTMENT_NOTES_AVAILABLE = False
 
 class DailyBriefingGenerator:
-    """CSV 파일 업로드 방식의 데일리 브리핑 프롬프트 생성을 위한 클래스"""
+    """CSV 데이터를 프롬프트에 포함하는 방식의 데일리 브리핑 프롬프트 생성을 위한 클래스"""
     
     def __init__(self, spreadsheet_id: str, gemini_api_key: str = None):
         self.spreadsheet_id = spreadsheet_id
@@ -68,8 +67,8 @@ class DailyBriefingGenerator:
         """Gemini API 설정"""
         try:
             # Google AI 클라이언트 초기화
-            genai.configure(api_key=self.gemini_api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-pro-latest')
+            self.client = genai.Client(api_key=self.gemini_api_key)
+            self.model_name = "gemini-2.5-pro"
             print("✅ Gemini API 설정이 완료되었습니다.")
         except Exception as e:
             print(f"❌ Gemini API 설정 실패: {e}")
@@ -97,101 +96,51 @@ class DailyBriefingGenerator:
             print(f"❌ '{sheet_name}' 시트 읽기 실패: {e}")
             return None
     
-    def create_temp_csv_file(self, csv_content: str, filename: str) -> str:
-        """CSV 내용을 임시 파일로 저장"""
-        try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, prefix=filename) as f:
-                f.write(csv_content)
-                temp_path = f.name
-            print(f"✅ 임시 파일 생성: {temp_path}")
-            return temp_path
-        except Exception as e:
-            print(f"❌ 임시 파일 생성 실패: {e}")
-            return None
-    
     def generate_daily_briefing_prompt(self, portfolio_df: pd.DataFrame, exchange_data: Dict = None) -> str:
-        """CSV 파일 업로드 방식으로 데일리 브리핑 프롬프트 생성"""
+        """CSV 데이터를 프롬프트에 포함하여 데일리 브리핑 프롬프트 생성"""
         max_retries = 8
         base_delay = 2
         
         for attempt in range(max_retries):
             try:
                 today = datetime.now().strftime('%Y년 %m월 %d일')
-                uploaded_files = []
                 
                 # 1. 포트폴리오 데이터를 CSV로 변환
                 portfolio_csv = self.get_data_as_csv("Portfolio")
-                if portfolio_csv:
-                    portfolio_temp_path = self.create_temp_csv_file(portfolio_csv, "portfolio_")
-                    if portfolio_temp_path:
-                        try:
-                            portfolio_file = genai.upload_file(
-                                path=portfolio_temp_path,
-                                display_name="portfolio_status.csv",
-                                mime_type="text/csv"
-                            )
-                            uploaded_files.append(portfolio_file)
-                            print("✅ 포트폴리오 파일 업로드 완료")
-                        except Exception as e:
-                            print(f"❌ 포트폴리오 파일 업로드 실패: {e}")
+                if not portfolio_csv:
+                    return "포트폴리오 데이터가 없습니다. Portfolio 시트를 확인해주세요."
                 
                 # 2. 투자 노트 데이터를 CSV로 변환
                 notes_csv = self.get_data_as_csv("투자_노트")
-                if notes_csv:
-                    notes_temp_path = self.create_temp_csv_file(notes_csv, "notes_")
-                    if notes_temp_path:
-                        try:
-                            notes_file = genai.upload_file(
-                                path=notes_temp_path,
-                                display_name="investment_notes.csv",
-                                mime_type="text/csv"
-                            )
-                            uploaded_files.append(notes_file)
-                            print("✅ 투자 노트 파일 업로드 완료")
-                        except Exception as e:
-                            print(f"❌ 투자 노트 파일 업로드 실패: {e}")
                 
-                if not uploaded_files:
-                    return "업로드할 데이터가 없습니다. 포트폴리오 또는 투자 노트 시트를 확인해주세요."
-                
-                # 3. 간결한 메타 프롬프트 생성
+                # 3. CSV 데이터를 포함한 메타 프롬프트 생성
                 meta_prompt = f"""너는 최고의 퀀트 애널리스트이자 나의 개인 투자 비서 AI야.
-첨부된 CSV 파일들을 참고하여, 오늘 날짜({today}) 기준 나의 포트폴리오에 대한 '데일리 브리핑 Deep Research 프롬프트'를 생성해 줘.
+오늘 날짜({today}) 기준 나의 포트폴리오에 대한 '데일리 브리핑 Deep Research 프롬프트'를 생성해 줘.
 
-- `portfolio_status.csv`: 나의 현재 보유 종목 현황 데이터야.
-- `investment_notes.csv`: 각 종목에 대한 나의 투자 아이디어, 촉매, 리스크 등이 담겨 있어.
+**포트폴리오 현황 데이터:**
+```
+{portfolio_csv}
+```
+
+**투자 노트 데이터:**
+```
+{notes_csv if notes_csv else "투자 노트 데이터 없음"}
+```
 
 **[지시사항]**
-1. 두 CSV 파일의 내용을 종합적으로 분석해줘.
+1. 위 CSV 데이터를 종합적으로 분석해줘.
 2. 나의 투자 아이디어가 현재 시장 상황에서도 유효한지 검증하는 것에 초점을 맞춰줘.
 3. 특히 투자 노트에 언급된 '핵심 리스크'와 관련된 최신 뉴스가 있는지 파악하고, 이를 질문에 반영해줘.
 4. Deep Research에 바로 입력할 수 있는, 구체적이고 실행 가능한(actionable) 프롬프트 1개만 최종 결과물로 출력해줘."""
                 
                 # 4. Gemini API 호출
                 print("🤖 Gemini API 호출 중...")
-                response = self.model.generate_content([meta_prompt] + uploaded_files)
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=meta_prompt
+                )
                 
-                # 5. 업로드된 파일 정리
-                for uploaded_file in uploaded_files:
-                    try:
-                        genai.delete_file(uploaded_file.name)
-                        print(f"✅ 파일 삭제 완료: {uploaded_file.name}")
-                    except Exception as e:
-                        print(f"⚠️ 파일 삭제 실패: {e}")
-                
-                # 6. 임시 파일 정리
-                if 'portfolio_temp_path' in locals() and portfolio_temp_path:
-                    try:
-                        os.unlink(portfolio_temp_path)
-                    except:
-                        pass
-                if 'notes_temp_path' in locals() and notes_temp_path:
-                    try:
-                        os.unlink(notes_temp_path)
-                    except:
-                        pass
-                
-                # 7. 응답 반환
+                # 5. 응답 반환
                 if response.text:
                     return response.text
                 else:
