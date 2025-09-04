@@ -165,66 +165,70 @@ class DailyBriefingGenerator:
     
     def generate_daily_briefing_prompt(self, portfolio_df: pd.DataFrame, exchange_data: Dict = None) -> str:
         """Gemini API를 활용한 지능형 데일리 브리핑 프롬프트 생성"""
-        try:
-            today = datetime.now().strftime('%Y년 %m월 %d일')
-            
-            # 포트폴리오 분석
-            total_value = portfolio_df['평가금액(원)'].sum() if '평가금액(원)' in portfolio_df.columns else 0
-            total_profit = portfolio_df['평가손익(원)'].sum() if '평가손익(원)' in portfolio_df.columns else 0
-            total_profit_rate = (total_profit / (total_value - total_profit) * 100) if (total_value - total_profit) > 0 else 0
-            
-            # 상위/하위 종목 분석
-            top_gainers = portfolio_df.nlargest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
-            top_losers = portfolio_df.nsmallest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
-            
-            top_gainers_text = "\n".join([
-                f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
-                for _, row in top_gainers.iterrows()
-            ]) if not top_gainers.empty else "없음"
-            
-            top_losers_text = "\n".join([
-                f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
-                for _, row in top_losers.iterrows()
-            ]) if not top_losers.empty else "없음"
-            
-            # 보유 종목 목록
-            portfolio_holdings = []
-            for _, row in portfolio_df.iterrows():
-                if pd.notna(row['종목코드']) and pd.notna(row['종목명']):
-                    if str(row['종목코드']).startswith('A'):  # 해외주식
-                        market = "나스닥" if "NASDAQ" in str(row['종목명']).upper() else "뉴욕거래소"
-                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
-                    else:  # 국내주식
-                        market = "코스닥" if len(str(row['종목코드'])) == 6 else "코스피"
-                        portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
-            
-            portfolio_holdings_text = "\n".join(portfolio_holdings) if portfolio_holdings else "* [포트폴리오 데이터 없음]"
-            
-            # 투자 노트 정보 (있는 경우)
-            notes_summary = ""
-            if self.notes_manager:
-                try:
-                    portfolio_notes = self.notes_manager.get_notes_by_portfolio(portfolio_df)
-                    if not portfolio_notes.empty:
-                        notes_summary = "\n### 📝 투자 노트 정보\n"
-                        for _, note in portfolio_notes.iterrows():
-                            conviction = note.get('투자 확신도 (Conviction)', '미설정')
-                            sector = note.get('섹터/산업 (Sector/Industry)', '미설정')
-                            thesis = note.get('투자 아이디어 (Thesis)', '미설정')
-                            notes_summary += f"- {note['종목명']}: {conviction} 확신도, {sector}, {thesis}\n"
-                except Exception as e:
-                    print(f"⚠️ 투자 노트 읽기 실패: {e}")
-            
-            # 환율 정보
-            exchange_info = ""
-            if exchange_data:
-                exchange_info = "\n".join([
-                    f"- {key}: {value}"
-                    for key, value in exchange_data.items()
-                ])
-            
-            # Gemini API에 전달할 메타 프롬프트
-            meta_prompt = f"""너는 최고의 퀀트 애널리스트이자 리서치 전문가야. 나의 개인 투자 비서로서, 아래 정보를 바탕으로 Google Deep Research에 사용할 가장 효과적인 데일리 브리핑 분석 프롬프트 1개를 생성해 줘.
+        max_retries = 5
+        base_delay = 2  # 초기 대기 시간 (초)
+        
+        for attempt in range(max_retries):
+            try:
+                today = datetime.now().strftime('%Y년 %m월 %d일')
+                
+                # 포트폴리오 분석
+                total_value = portfolio_df['평가금액(원)'].sum() if '평가금액(원)' in portfolio_df.columns else 0
+                total_profit = portfolio_df['평가손익(원)'].sum() if '평가손익(원)' in portfolio_df.columns else 0
+                total_profit_rate = (total_profit / (total_value - total_profit) * 100) if (total_value - total_profit) > 0 else 0
+                
+                # 상위/하위 종목 분석
+                top_gainers = portfolio_df.nlargest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
+                top_losers = portfolio_df.nsmallest(3, '평가손익(원)')[['종목명', '평가손익(원)', '수익률']] if '평가손익(원)' in portfolio_df.columns else pd.DataFrame()
+                
+                top_gainers_text = "\n".join([
+                    f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
+                    for _, row in top_gainers.iterrows()
+                ]) if not top_gainers.empty else "없음"
+                
+                top_losers_text = "\n".join([
+                    f"- {row['종목명']}: {row['평가손익(원)']:+,.0f}원 ({row['수익률']:+.2f}%)"
+                    for _, row in top_losers.iterrows()
+                ]) if not top_losers.empty else "없음"
+                
+                # 보유 종목 목록
+                portfolio_holdings = []
+                for _, row in portfolio_df.iterrows():
+                    if pd.notna(row['종목코드']) and pd.notna(row['종목명']):
+                        if str(row['종목코드']).startswith('A'):  # 해외주식
+                            market = "나스닥" if "NASDAQ" in str(row['종목명']).upper() else "뉴욕거래소"
+                            portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+                        else:  # 국내주식
+                            market = "코스닥" if len(str(row['종목코드'])) == 6 else "코스피"
+                            portfolio_holdings.append(f"* {row['종목명']} ({row['종목코드']}, {market})")
+                
+                portfolio_holdings_text = "\n".join(portfolio_holdings) if portfolio_holdings else "* [포트폴리오 데이터 없음]"
+                
+                # 투자 노트 정보 (있는 경우)
+                notes_summary = ""
+                if self.notes_manager:
+                    try:
+                        portfolio_notes = self.notes_manager.get_notes_by_portfolio(portfolio_df)
+                        if not portfolio_notes.empty:
+                            notes_summary = "\n### 📝 투자 노트 정보\n"
+                            for _, note in portfolio_notes.iterrows():
+                                conviction = note.get('투자 확신도 (Conviction)', '미설정')
+                                sector = note.get('섹터/산업 (Sector/Industry)', '미설정')
+                                thesis = note.get('투자 아이디어 (Thesis)', '미설정')
+                                notes_summary += f"- {note['종목명']}: {conviction} 확신도, {sector}, {thesis}\n"
+                    except Exception as e:
+                        print(f"⚠️ 투자 노트 읽기 실패: {e}")
+                
+                # 환율 정보
+                exchange_info = ""
+                if exchange_data:
+                    exchange_info = "\n".join([
+                        f"- {key}: {value}"
+                        for key, value in exchange_data.items()
+                    ])
+                
+                # Gemini API에 전달할 메타 프롬프트
+                meta_prompt = f"""너는 최고의 퀀트 애널리스트이자 리서치 전문가야. 나의 개인 투자 비서로서, 아래 정보를 바탕으로 Google Deep Research에 사용할 가장 효과적인 데일리 브리핑 분석 프롬프트 1개를 생성해 줘.
 
 ## 📊 나의 현재 포트폴리오 현황 ({today})
 
@@ -288,39 +292,53 @@ class DailyBriefingGenerator:
 ```
 
 **중요**: 생성된 프롬프트는 Google Deep Research에 바로 복사해서 사용할 수 있어야 하며, 내 포트폴리오의 현재 상황과 투자 노트를 반영한 맞춤형 분석을 요청하는 내용이어야 해."""
-            
-            # Gemini API 호출
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=meta_prompt
-            )
-            
-            # 응답 텍스트 안전하게 추출
-            try:
-                response_text = response.text
-                if response_text:
-                    return response_text
+                
+                # Gemini API 호출
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=meta_prompt
+                )
+                
+                # 응답 텍스트 안전하게 추출
+                try:
+                    response_text = response.text
+                    if response_text:
+                        return response_text
+                    else:
+                        return "Gemini API 응답이 비어있습니다."
+                except Exception as text_error:
+                    print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
+                    
+                    # 새로운 API의 fallback 방법 시도
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                part = candidate.content.parts[0]
+                                if hasattr(part, 'text'):
+                                    response_text = part.text
+                                    if response_text:
+                                        return response_text
+                    
+                    return "Gemini API 응답 처리 중 오류가 발생했습니다."
+                    
+            except Exception as e:
+                error_str = str(e)
+                if "503" in error_str and "UNAVAILABLE" in error_str:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # 지수적 백오프
+                        print(f"⚠️ Gemini API 503 오류 발생. {delay}초 후 재시도 중... (시도 {attempt + 1}/{max_retries})")
+                        import time
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"❌ 최대 재시도 횟수 초과. Gemini API 서버 과부하 상태입니다.")
+                        return "Gemini API 서버가 과부하 상태입니다. 잠시 후 다시 시도해주세요."
                 else:
-                    return "Gemini API 응답이 비어있습니다."
-            except Exception as text_error:
-                print(f"⚠️ response.text 실패, fallback 방법 시도: {str(text_error)}")
-                
-                # 새로운 API의 fallback 방법 시도
-                if hasattr(response, 'candidates') and response.candidates:
-                    candidate = response.candidates[0]
-                    if hasattr(candidate, 'content') and candidate.content:
-                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
-                            part = candidate.content.parts[0]
-                            if hasattr(part, 'text'):
-                                response_text = part.text
-                                if response_text:
-                                    return response_text
-                
-                return "Gemini API 응답 처리 중 오류가 발생했습니다."
-                
-        except Exception as e:
-            print(f"❌ 지능형 프롬프트 생성 실패: {e}")
-            return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
+                    print(f"❌ 지능형 프롬프트 생성 실패: {e}")
+                    return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
+        
+        return "알 수 없는 오류가 발생했습니다."
     
     def generate_ai_research_questions(self, df: pd.DataFrame) -> str:
         """AI가 포트폴리오 데이터를 분석하여 Deep Research용 질문들을 생성"""
