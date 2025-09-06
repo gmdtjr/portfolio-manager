@@ -424,10 +424,10 @@ def main():
                         **✨ 이제 매일 이 과정을 반복하세요!**
                         """)
                         
-                except Exception as e:
-                    st.error(f"❌ 완전한 패키지 생성 실패: {e}")
-                    import traceback
-                    st.error(f"상세 오류: {traceback.format_exc()}")
+            except Exception as e:
+                st.error(f"❌ 완전한 패키지 생성 실패: {e}")
+                import traceback
+                st.error(f"상세 오류: {traceback.format_exc()}")
         
         # 세션 상태에 저장된 패키지가 있으면 표시
         if 'generated_package' in st.session_state:
