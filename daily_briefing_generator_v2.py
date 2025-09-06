@@ -350,13 +350,21 @@ def main():
                         st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600, key="prompt_text_area")
                         
                         # 복사 버튼 (개선된 버전)
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            if st.button("📋 프롬프트 복사", key="copy_complete_prompt", use_container_width=True):
-                                st.success("✅ 프롬프트가 클립보드에 복사되었습니다!")
-                        with col2:
-                            if st.button("🔄 프롬프트 새로고침", key="refresh_prompt", use_container_width=True):
-                                st.rerun()
+                        st.markdown("### 📋 프롬프트 복사 방법")
+                        st.info("""
+                        **💡 프롬프트 복사 방법:**
+                        1. 위 텍스트 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)
+                        2. 복사 (Ctrl+C 또는 Cmd+C)
+                        3. Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)
+                        """)
+                        
+                        # 프롬프트를 별도로 표시 (선택하기 쉬운 형태)
+                        st.markdown("### 📄 복사용 프롬프트")
+                        st.code(package['complete_prompt'], language="text")
+                        
+                        # 새로고침 버튼
+                        if st.button("🔄 프롬프트 새로고침", key="refresh_prompt", use_container_width=True):
+                            st.rerun()
                         
                         st.success("💡 이 프롬프트를 Deep Research에 붙여넣으세요!")
                     
@@ -445,10 +453,23 @@ def main():
                 st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600, key="saved_prompt_text_area")
                 
                 # 복사 버튼 (개선된 버전)
+                st.markdown("### 📋 프롬프트 복사 방법")
+                st.info("""
+                **💡 프롬프트 복사 방법:**
+                1. 아래 코드 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)
+                2. 복사 (Ctrl+C 또는 Cmd+C)
+                3. Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)
+                """)
+                
+                # 프롬프트를 별도로 표시 (선택하기 쉬운 형태)
+                st.markdown("### 📄 복사용 프롬프트")
+                st.code(package['complete_prompt'], language="text")
+                
+                # 버튼들
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    if st.button("📋 프롬프트 복사", key="copy_saved_prompt", use_container_width=True):
-                        st.success("✅ 프롬프트가 클립보드에 복사되었습니다!")
+                    if st.button("🔄 프롬프트 새로고침", key="refresh_saved_prompt", use_container_width=True):
+                        st.rerun()
                 with col2:
                     if st.button("🗑️ 패키지 삭제", key="delete_package", use_container_width=True):
                         del st.session_state['generated_package']
