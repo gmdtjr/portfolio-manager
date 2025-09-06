@@ -7,6 +7,16 @@ from datetime import datetime
 import time
 from portfolio_manager import KoreaInvestmentAPI, GoogleSheetsManager, Account, ExchangeRateAPI
 
+def get_time_window_text(selection: str) -> str:
+    """UI 선택에 따라 시간 범위 텍스트를 반환합니다."""
+    if "48시간" in selection:
+        return "지난 48시간 동안"
+    if "72시간" in selection:
+        return "지난 72시간 동안"
+    if "1주일" in selection:
+        return "지난 1주일 동안"
+    return "지난 24시간 동안" # Default
+
 # 데일리 브리핑 생성기 import
 try:
     from daily_briefing_generator import DailyBriefingGenerator
@@ -863,6 +873,18 @@ def main():
                 • Deep Research에 바로 사용 가능한 완성된 패키지 제공
                 """)
                 
+                # 시간 범위 선택
+                st.subheader("⏰ 분석 기간 선택")
+                time_window_selection = st.radio(
+                    "매크로 이슈 분석 기간을 선택하세요:",
+                    ('24시간', '48시간', '72시간', '1주일'),
+                    horizontal=True,
+                    help="몇 일 동안의 뉴스를 분석할지 선택하세요"
+                )
+                
+                time_window_text = get_time_window_text(time_window_selection)
+                st.info(f"📅 선택된 분석 기간: **{time_window_text}**")
+                
                 # 완전한 패키지 생성 기능
                 st.subheader("🎯 완전한 패키지 생성")
                 st.info("""
@@ -877,7 +899,7 @@ def main():
                     try:
                         with st.spinner("🚀 모든 재료를 준비하고 있습니다... (최대 2분 소요)"):
                             # 완전한 패키지 생성
-                            package = generator.generate_complete_package()
+                            package = generator.generate_complete_package(time_window_text)
                             
                             if 'error' in package:
                                 st.error(f"❌ 패키지 생성 실패: {package['error']}")
@@ -980,7 +1002,7 @@ def main():
                     if st.button("🤖 프롬프트 생성", use_container_width=True):
                         try:
                             with st.spinner("🤖 프롬프트를 생성하고 있습니다..."):
-                                prompt = generator.generate_complete_prompt()
+                                prompt = generator.generate_complete_prompt(time_window_text)
                                 st.text_area("생성된 프롬프트", prompt, height=400)
                         except Exception as e:
                             st.error(f"❌ 프롬프트 생성 실패: {e}")
