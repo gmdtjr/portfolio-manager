@@ -4,7 +4,6 @@ import sys
 import json
 import pandas as pd
 from datetime import datetime
-import time
 from portfolio_manager import KoreaInvestmentAPI, GoogleSheetsManager, Account, ExchangeRateAPI
 
 def get_time_window_text(selection: str) -> str:
@@ -17,12 +16,6 @@ def get_time_window_text(selection: str) -> str:
         return "지난 1주일 동안"
     return "지난 24시간 동안" # Default
 
-# 데일리 브리핑 생성기 import
-try:
-    from daily_briefing_generator import DailyBriefingGenerator
-    DAILY_BRIEFING_AVAILABLE = True
-except ImportError:
-    DAILY_BRIEFING_AVAILABLE = False
 
 # 투자 노트 생성기 import
 try:
@@ -354,7 +347,7 @@ def main():
     st.sidebar.title("📄 페이지 선택")
     page = st.sidebar.selectbox(
         "원하는 기능을 선택하세요",
-        ["🔄 포트폴리오 업데이트", "📊 데일리 브리핑 프롬프트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기 V2"],
+        ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기"],
         help="각 기능을 선택하여 포트폴리오 관리 작업을 수행하세요"
     )
     
@@ -455,206 +448,6 @@ def main():
         else:
             st.warning("⚠️ 환경변수를 설정한 후 포트폴리오 업데이트를 사용할 수 있습니다.")
             st.info("📝 Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.")
-    
-    elif page == "📊 데일리 브리핑 프롬프트":
-        if not DAILY_BRIEFING_AVAILABLE:
-            st.error("❌ 데일리 브리핑 프롬프트 생성 기능을 사용할 수 없습니다.")
-            st.info("💡 필요한 모듈이 설치되지 않았습니다.")
-            return
-        
-        st.header("📊 데일리 브리핑 프롬프트 생성")
-        st.markdown("CSV 데이터를 프롬프트에 포함하여 맞춤형 Deep Research 프롬프트를 생성합니다.")
-        
-        st.info("""
-        **🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성기**
-        • 구글 시트 데이터를 CSV로 변환하여 프롬프트에 직접 포함
-        • 포트폴리오 현황과 투자 노트를 구조화된 데이터로 분석
-        • 프롬프트 길이 대폭 단축으로 API 부하 감소
-        • 더 정확하고 구체적인 분석 프롬프트 생성
-        • 생성된 프롬프트를 Gemini Deep Research에 수동 입력하여 보고서 생성
-        """)
-        
-        # 환경변수 확인
-        def get_secret(key):
-            try:
-                return st.secrets[key]
-            except:
-                return os.getenv(key)
-        
-        spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
-        
-        if not spreadsheet_id:
-            st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
-            return
-        
-        # 기능 설명
-        st.subheader("💡 기능 설명")
-        st.info("""
-        **📊 데일리 브리핑 프롬프트 생성**
-        • 포트폴리오 현황 분석 (수익률, 상위/하위 종목, 섹터별 분포)
-        • 환율 정보 통합
-        • 투자 노트 연계 분석
-        • Gemini Deep Research용 최적화된 프롬프트 생성
-        """)
-        
-        # 완전 자동화 기능
-        st.subheader("🎯 완전 자동화 (원클릭)")
-        st.info("""
-        **🎯 원클릭 완전 자동화**
-        • 클릭 한 번으로 모든 재료 준비 완료
-        • 포트폴리오 CSV + 투자노트 CSV + 완성된 프롬프트
-        • 딥 리서치에 바로 사용할 수 있는 완전한 패키지
-        • 더 이상 수동 작업 불필요!
-        """)
-        
-        if st.button("🎯 원클릭 완전 자동화 패키지 생성", type="primary", use_container_width=True):
-            try:
-                with st.spinner("🚀 모든 재료를 준비하고 있습니다... (최대 2분 소요)"):
-                    # 완전 자동화 패키지 생성
-                    generator = DailyBriefingGenerator(spreadsheet_id)
-                    package = generator.generate_complete_package()
-                    
-                    if 'error' in package:
-                        st.error(f"❌ 패키지 생성 실패: {package['error']}")
-                        return
-                    
-                    # 성공 메시지
-                    st.success("🎉 완전 자동화 패키지가 준비되었습니다!")
-                    st.info(f"📅 생성 시간: {package['timestamp']}")
-                    
-                    # 탭으로 구분하여 표시
-                    tab1, tab2, tab3, tab4 = st.tabs(["📋 완성된 프롬프트", "📊 포트폴리오 CSV", "📝 투자노트 CSV", "📈 데이터 미리보기"])
-                    
-                    with tab1:
-                        st.markdown("### 🎯 Deep Research에 바로 사용할 프롬프트")
-                        st.text_area("완성된 데일리 브리핑 프롬프트", package['briefing_prompt'], height=600)
-                        
-                        # 복사 버튼
-                        if st.button("📋 프롬프트 복사", key="copy_complete_prompt"):
-                            st.write("✅ 프롬프트가 클립보드에 복사되었습니다!")
-                        
-                        st.success("💡 이 프롬프트를 Deep Research에 붙여넣으세요!")
-                    
-                    with tab2:
-                        st.markdown("### 📊 포트폴리오 CSV 파일")
-                        if package['portfolio_csv']:
-                            st.text_area("포트폴리오 데이터 (CSV)", package['portfolio_csv'], height=400)
-                            
-                            # CSV 다운로드 버튼
-                            st.download_button(
-                                label="📥 포트폴리오 CSV 다운로드",
-                                data=package['portfolio_csv'],
-                                file_name=f"portfolio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/csv",
-                                key="download_portfolio_csv"
-                            )
-                        else:
-                            st.warning("포트폴리오 데이터가 없습니다.")
-                    
-                    with tab3:
-                        st.markdown("### 📝 투자노트 CSV 파일")
-                        if package['notes_csv']:
-                            st.text_area("투자노트 데이터 (CSV)", package['notes_csv'], height=400)
-                            
-                            # CSV 다운로드 버튼
-                            st.download_button(
-                                label="📥 투자노트 CSV 다운로드",
-                                data=package['notes_csv'],
-                                file_name=f"investment_notes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/csv",
-                                key="download_notes_csv"
-                            )
-                        else:
-                            st.warning("투자노트 데이터가 없습니다.")
-                    
-                    with tab4:
-                        st.markdown("### 📈 데이터 미리보기")
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.subheader("📊 포트폴리오 현황")
-                            if package['portfolio_df'] is not None:
-                                st.dataframe(package['portfolio_df'], use_container_width=True)
-                            else:
-                                st.info("포트폴리오 데이터가 없습니다.")
-                        
-                        with col2:
-                            st.subheader("💱 환율 정보")
-                            if package['exchange_data']:
-                                st.json(package['exchange_data'])
-                            else:
-                                st.info("환율 정보가 없습니다.")
-                    
-                    # 사용법 안내
-                    st.markdown("---")
-                    st.markdown("### 📖 사용법 안내")
-                    st.info("""
-                    **🎯 Deep Research 사용 방법:**
-                    1. **프롬프트 복사**: 위의 완성된 프롬프트를 복사
-                    2. **CSV 파일 다운로드**: 포트폴리오와 투자노트 CSV 파일을 다운로드
-                    3. **Deep Research 접속**: Gemini Deep Research에 접속
-                    4. **파일 첨부**: 다운로드한 CSV 파일 2개를 첨부
-                    5. **프롬프트 붙여넣기**: 복사한 프롬프트를 붙여넣고 실행
-                    
-                    **✨ 이제 매일 이 과정을 반복하세요!**
-                    """)
-                    
-            except Exception as e:
-                st.error(f"❌ 완전 자동화 실패: {e}")
-                import traceback
-                st.error(f"상세 오류: {traceback.format_exc()}")
-        
-        st.markdown("---")
-        
-        # 기존 브리핑 생성 버튼 (하위 호환성)
-        st.subheader("🚀 기존 브리핑 생성")
-        if st.button("🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성", type="secondary", use_container_width=True):
-            try:
-                with st.spinner("CSV 데이터를 프롬프트에 포함하여 프롬프트를 생성하고 있습니다..."):
-                    # 브리핑 생성기 초기화
-                    generator = DailyBriefingGenerator(spreadsheet_id)
-                    
-                    # 포트폴리오 데이터 읽기
-                    st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
-                    portfolio_df = generator.read_portfolio_data()
-                    
-                    # 환율 정보 읽기
-                    st.info("💱 환율 정보를 읽고 있습니다...")
-                    exchange_data = generator.read_exchange_rate_data()
-                    
-                    # 데일리 브리핑 프롬프트 생성
-                    st.info("📝 데일리 브리핑 프롬프트를 생성하고 있습니다...")
-                    briefing_prompt = generator.generate_daily_briefing_prompt(portfolio_df, exchange_data)
-                    
-                    # 결과 표시
-                    st.success("✅ CSV 데이터 포함 방식 데일리 브리핑 프롬프트가 생성되었습니다!")
-                    
-                    # 탭으로 구분하여 표시
-                    tab1, tab2, tab3 = st.tabs(["🤖 생성된 프롬프트", "📈 포트폴리오 데이터", "💱 환율 정보"])
-                    
-                    with tab1:
-                        st.markdown("### 📋 Gemini Deep Research에 복사할 프롬프트")
-                        st.text_area("CSV 데이터 포함 방식 데일리 브리핑 프롬프트", briefing_prompt, height=600)
-                        
-                        # 복사 버튼
-                        if st.button("📋 프롬프트 복사", key="copy_briefing_prompt"):
-                            st.write("프롬프트가 클립보드에 복사되었습니다.")
-                        
-                        st.info("💡 이 프롬프트를 Gemini Deep Research에 붙여넣어 데일리 브리핑을 생성하세요.")
-                    
-                    with tab2:
-                        st.dataframe(portfolio_df, use_container_width=True)
-                    
-                    with tab3:
-                        if exchange_data:
-                            st.json(exchange_data)
-                        else:
-                            st.info("환율 정보가 없습니다.")
-                    
-            except Exception as e:
-                    st.error(f"❌ 프롬프트 생성 실패: {e}")
-                    import traceback
-                    st.error(f"상세 오류: {traceback.format_exc()}")
     
     elif page == "📝 투자 노트 자동 생성":
         if not INVESTMENT_NOTE_GENERATOR_AVAILABLE:
@@ -833,9 +626,9 @@ def main():
 - 파운드리 신규 고객 확보 기대
             """)
     
-    # 데일리 브리핑 생성기 V2 페이지
-    elif page == "🎯 데일리 브리핑 생성기 V2":
-        st.subheader("🎯 데일리 브리핑 생성기 V2")
+    # 데일리 브리핑 생성기 페이지
+    elif page == "🎯 데일리 브리핑 생성기":
+        st.subheader("🎯 데일리 브리핑 생성기")
         st.markdown("매크로 이슈 분석 + 포트폴리오 데이터 + 완성된 프롬프트 생성")
         
         # 환경변수 확인
@@ -850,22 +643,22 @@ def main():
             st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다. 프롬프트 생성 기능을 사용할 수 없습니다.")
             return
         
-        # 데일리 브리핑 생성기 V2 import
+        # 데일리 브리핑 생성기 import
         try:
-            from daily_briefing_generator_v2 import DailyBriefingGeneratorV2
-            DAILY_BRIEFING_V2_AVAILABLE = True
+            from daily_briefing_generator import DailyBriefingGenerator
+            DAILY_BRIEFING_AVAILABLE = True
         except ImportError as e:
-            st.error(f"❌ 데일리 브리핑 생성기 V2를 불러올 수 없습니다: {e}")
-            DAILY_BRIEFING_V2_AVAILABLE = False
+            st.error(f"❌ 데일리 브리핑 생성기를 불러올 수 없습니다: {e}")
+            DAILY_BRIEFING_AVAILABLE = False
         
-        if DAILY_BRIEFING_V2_AVAILABLE:
+        if DAILY_BRIEFING_AVAILABLE:
             try:
                 # 데일리 브리핑 생성기 초기화
-                generator = DailyBriefingGeneratorV2(spreadsheet_id, google_api_key)
+                generator = DailyBriefingGenerator(spreadsheet_id, google_api_key)
                 
                 # 기능 설명
                 st.info("""
-                **📊 데일리 브리핑 생성기 V2**
+                **📊 데일리 브리핑 생성기**
                 • Gemini API로 오늘의 매크로 이슈 자동 분석
                 • 포트폴리오와 투자 노트 데이터 통합 분석
                 • 전문적인 데일리 브리핑 프롬프트 생성
