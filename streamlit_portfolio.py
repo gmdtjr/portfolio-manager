@@ -487,9 +487,118 @@ def main():
         • Gemini Deep Research용 최적화된 프롬프트 생성
         """)
         
-        # 브리핑 생성 버튼
-        st.subheader("🚀 브리핑 생성")
-        if st.button("🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성", type="primary", use_container_width=True):
+        # 완전 자동화 기능
+        st.subheader("🎯 완전 자동화 (원클릭)")
+        st.info("""
+        **🎯 원클릭 완전 자동화**
+        • 클릭 한 번으로 모든 재료 준비 완료
+        • 포트폴리오 CSV + 투자노트 CSV + 완성된 프롬프트
+        • 딥 리서치에 바로 사용할 수 있는 완전한 패키지
+        • 더 이상 수동 작업 불필요!
+        """)
+        
+        if st.button("🎯 원클릭 완전 자동화 패키지 생성", type="primary", use_container_width=True):
+            try:
+                with st.spinner("🚀 모든 재료를 준비하고 있습니다... (최대 2분 소요)"):
+                    # 완전 자동화 패키지 생성
+                    generator = DailyBriefingGenerator(spreadsheet_id)
+                    package = generator.generate_complete_package()
+                    
+                    if 'error' in package:
+                        st.error(f"❌ 패키지 생성 실패: {package['error']}")
+                        return
+                    
+                    # 성공 메시지
+                    st.success("🎉 완전 자동화 패키지가 준비되었습니다!")
+                    st.info(f"📅 생성 시간: {package['timestamp']}")
+                    
+                    # 탭으로 구분하여 표시
+                    tab1, tab2, tab3, tab4 = st.tabs(["📋 완성된 프롬프트", "📊 포트폴리오 CSV", "📝 투자노트 CSV", "📈 데이터 미리보기"])
+                    
+                    with tab1:
+                        st.markdown("### 🎯 Deep Research에 바로 사용할 프롬프트")
+                        st.text_area("완성된 데일리 브리핑 프롬프트", package['briefing_prompt'], height=600)
+                        
+                        # 복사 버튼
+                        if st.button("📋 프롬프트 복사", key="copy_complete_prompt"):
+                            st.write("✅ 프롬프트가 클립보드에 복사되었습니다!")
+                        
+                        st.success("💡 이 프롬프트를 Deep Research에 붙여넣으세요!")
+                    
+                    with tab2:
+                        st.markdown("### 📊 포트폴리오 CSV 파일")
+                        if package['portfolio_csv']:
+                            st.text_area("포트폴리오 데이터 (CSV)", package['portfolio_csv'], height=400)
+                            
+                            # CSV 다운로드 버튼
+                            st.download_button(
+                                label="📥 포트폴리오 CSV 다운로드",
+                                data=package['portfolio_csv'],
+                                file_name=f"portfolio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv",
+                                key="download_portfolio_csv"
+                            )
+                        else:
+                            st.warning("포트폴리오 데이터가 없습니다.")
+                    
+                    with tab3:
+                        st.markdown("### 📝 투자노트 CSV 파일")
+                        if package['notes_csv']:
+                            st.text_area("투자노트 데이터 (CSV)", package['notes_csv'], height=400)
+                            
+                            # CSV 다운로드 버튼
+                            st.download_button(
+                                label="📥 투자노트 CSV 다운로드",
+                                data=package['notes_csv'],
+                                file_name=f"investment_notes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv",
+                                key="download_notes_csv"
+                            )
+                        else:
+                            st.warning("투자노트 데이터가 없습니다.")
+                    
+                    with tab4:
+                        st.markdown("### 📈 데이터 미리보기")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.subheader("📊 포트폴리오 현황")
+                            if package['portfolio_df'] is not None:
+                                st.dataframe(package['portfolio_df'], use_container_width=True)
+                            else:
+                                st.info("포트폴리오 데이터가 없습니다.")
+                        
+                        with col2:
+                            st.subheader("💱 환율 정보")
+                            if package['exchange_data']:
+                                st.json(package['exchange_data'])
+                            else:
+                                st.info("환율 정보가 없습니다.")
+                    
+                    # 사용법 안내
+                    st.markdown("---")
+                    st.markdown("### 📖 사용법 안내")
+                    st.info("""
+                    **🎯 Deep Research 사용 방법:**
+                    1. **프롬프트 복사**: 위의 완성된 프롬프트를 복사
+                    2. **CSV 파일 다운로드**: 포트폴리오와 투자노트 CSV 파일을 다운로드
+                    3. **Deep Research 접속**: Gemini Deep Research에 접속
+                    4. **파일 첨부**: 다운로드한 CSV 파일 2개를 첨부
+                    5. **프롬프트 붙여넣기**: 복사한 프롬프트를 붙여넣고 실행
+                    
+                    **✨ 이제 매일 이 과정을 반복하세요!**
+                    """)
+                    
+            except Exception as e:
+                st.error(f"❌ 완전 자동화 실패: {e}")
+                import traceback
+                st.error(f"상세 오류: {traceback.format_exc()}")
+        
+        st.markdown("---")
+        
+        # 기존 브리핑 생성 버튼 (하위 호환성)
+        st.subheader("🚀 기존 브리핑 생성")
+        if st.button("🤖 CSV 데이터 포함 방식 데일리 브리핑 프롬프트 생성", type="secondary", use_container_width=True):
             try:
                 with st.spinner("CSV 데이터를 프롬프트에 포함하여 프롬프트를 생성하고 있습니다..."):
                     # 브리핑 생성기 초기화

@@ -193,17 +193,23 @@ class DailyBriefingGenerator:
         
         for attempt in range(max_retries):
             try:
+                print(f"🔄 시도 {attempt + 1}/{max_retries} 시작...")
                 today = datetime.now().strftime('%Y년 %m월 %d일')
                 
                 # 1. 포트폴리오 데이터를 CSV로 변환
+                print("📊 포트폴리오 데이터 CSV 변환 중...")
                 portfolio_csv = self.get_data_as_csv("Portfolio")
                 if not portfolio_csv:
                     return "포트폴리오 데이터가 없습니다. Portfolio 시트를 확인해주세요."
+                print(f"✅ 포트폴리오 CSV 변환 완료: {len(portfolio_csv)}자")
                 
                 # 2. 투자 노트 데이터를 CSV로 변환
+                print("📝 투자 노트 데이터 CSV 변환 중...")
                 notes_csv = self.get_data_as_csv("투자_노트")
+                print(f"✅ 투자 노트 CSV 변환 완료: {len(notes_csv) if notes_csv else 0}자")
                 
                 # 3. CSV 데이터를 포함한 메타 프롬프트 생성
+                print("🤖 메타 프롬프트 생성 중...")
                 meta_prompt = f"""너는 최고의 퀀트 애널리스트이자 나의 개인 투자 비서 AI야.
 오늘 날짜({today}) 기준 나의 포트폴리오에 대한 '데일리 브리핑 Deep Research 프롬프트'를 생성해 줘.
 
@@ -223,21 +229,43 @@ class DailyBriefingGenerator:
 3. 특히 투자 노트에 언급된 '핵심 리스크'와 관련된 최신 뉴스가 있는지 파악하고, 이를 질문에 반영해줘.
 4. Deep Research에 바로 입력할 수 있는, 구체적이고 실행 가능한(actionable) 프롬프트 1개만 최종 결과물로 출력해줘."""
                 
-                # 4. Gemini API 호출
-                print("🤖 Gemini API 호출 중...")
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=meta_prompt
-                )
+                print(f"✅ 메타 프롬프트 생성 완료: {len(meta_prompt)}자")
+                
+                # 4. Gemini API 호출 (타임아웃 설정)
+                print("🤖 Gemini API 호출 중... (최대 60초 대기)")
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("API 호출 시간 초과")
+                
+                # 60초 타임아웃 설정
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(60)
+                
+                try:
+                    response = self.client.models.generate_content(
+                        model=self.model_name,
+                        contents=meta_prompt
+                    )
+                    signal.alarm(0)  # 타임아웃 해제
+                    print("✅ Gemini API 응답 수신 완료")
+                except TimeoutError:
+                    signal.alarm(0)
+                    print("❌ API 호출 시간 초과")
+                    return "API 호출 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
                 
                 # 5. 응답 반환
                 if response.text:
+                    print(f"✅ 응답 텍스트 추출 완료: {len(response.text)}자")
                     return response.text
                 else:
+                    print("⚠️ 응답 텍스트가 비어있음")
                     return "Gemini API 응답이 비어있습니다."
                     
             except Exception as e:
                 error_str = str(e)
+                print(f"❌ 오류 발생: {error_str}")
+                
                 if "503" in error_str and "UNAVAILABLE" in error_str:
                     if attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)
@@ -261,6 +289,53 @@ class DailyBriefingGenerator:
                     return f"지능형 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
         
         return "알 수 없는 오류가 발생했습니다."
+    
+    def generate_complete_package(self) -> Dict:
+        """클릭 한 번으로 모든 재료를 준비하는 완전 자동화 기능"""
+        try:
+            print("🚀 완전 자동화 패키지 생성 시작...")
+            
+            # 1. 포트폴리오 데이터 읽기
+            print("📊 포트폴리오 데이터 읽기...")
+            portfolio_df = self.read_portfolio_data()
+            
+            # 2. 환율 정보 읽기
+            print("💱 환율 정보 읽기...")
+            exchange_data = self.read_exchange_rate_data()
+            
+            # 3. CSV 파일 생성
+            print("📁 CSV 파일 생성...")
+            portfolio_csv = self.get_data_as_csv("Portfolio")
+            notes_csv = self.get_data_as_csv("투자_노트")
+            
+            # 4. 데일리 브리핑 프롬프트 생성
+            print("🤖 데일리 브리핑 프롬프트 생성...")
+            briefing_prompt = self.generate_daily_briefing_prompt(portfolio_df, exchange_data)
+            
+            # 5. 패키지 구성
+            package = {
+                'portfolio_csv': portfolio_csv,
+                'notes_csv': notes_csv,
+                'briefing_prompt': briefing_prompt,
+                'portfolio_df': portfolio_df,
+                'exchange_data': exchange_data,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+            print("✅ 완전 자동화 패키지 생성 완료!")
+            return package
+            
+        except Exception as e:
+            print(f"❌ 패키지 생성 실패: {e}")
+            return {
+                'error': str(e),
+                'portfolio_csv': None,
+                'notes_csv': None,
+                'briefing_prompt': None,
+                'portfolio_df': None,
+                'exchange_data': None,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
 
 def main():
     """메인 함수 - CSV 파일 업로드 방식의 지능형 데일리 브리핑 프롬프트 생성기"""
