@@ -339,16 +339,24 @@ def main():
                     st.success("🎉 완전한 패키지가 준비되었습니다!")
                     st.info(f"📅 생성 시간: {package['timestamp']}")
                     
+                    # 세션 상태에 패키지 저장
+                    st.session_state['generated_package'] = package
+                    
                     # 탭으로 구분하여 표시
                     tab1, tab2, tab3, tab4 = st.tabs(["📋 완성된 프롬프트", "📊 포트폴리오 CSV", "📝 투자노트 CSV", "📈 데이터 미리보기"])
                     
                     with tab1:
                         st.markdown("### 🎯 Deep Research에 바로 사용할 프롬프트")
-                        st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600)
+                        st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600, key="prompt_text_area")
                         
-                        # 복사 버튼
-                        if st.button("📋 프롬프트 복사", key="copy_complete_prompt"):
-                            st.write("✅ 프롬프트가 클립보드에 복사되었습니다!")
+                        # 복사 버튼 (개선된 버전)
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            if st.button("📋 프롬프트 복사", key="copy_complete_prompt", use_container_width=True):
+                                st.success("✅ 프롬프트가 클립보드에 복사되었습니다!")
+                        with col2:
+                            if st.button("🔄 프롬프트 새로고침", key="refresh_prompt", use_container_width=True):
+                                st.rerun()
                         
                         st.success("💡 이 프롬프트를 Deep Research에 붙여넣으세요!")
                     
@@ -416,10 +424,87 @@ def main():
                         **✨ 이제 매일 이 과정을 반복하세요!**
                         """)
                         
-            except Exception as e:
-                st.error(f"❌ 완전한 패키지 생성 실패: {e}")
-                import traceback
-                st.error(f"상세 오류: {traceback.format_exc()}")
+                except Exception as e:
+                    st.error(f"❌ 완전한 패키지 생성 실패: {e}")
+                    import traceback
+                    st.error(f"상세 오류: {traceback.format_exc()}")
+        
+        # 세션 상태에 저장된 패키지가 있으면 표시
+        if 'generated_package' in st.session_state:
+            package = st.session_state['generated_package']
+            
+            st.markdown("---")
+            st.subheader("📋 이전에 생성된 패키지")
+            st.info(f"📅 생성 시간: {package['timestamp']}")
+            
+            # 탭으로 구분하여 표시
+            tab1, tab2, tab3, tab4 = st.tabs(["📋 완성된 프롬프트", "📊 포트폴리오 CSV", "📝 투자노트 CSV", "📈 데이터 미리보기"])
+            
+            with tab1:
+                st.markdown("### 🎯 Deep Research에 바로 사용할 프롬프트")
+                st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600, key="saved_prompt_text_area")
+                
+                # 복사 버튼 (개선된 버전)
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("📋 프롬프트 복사", key="copy_saved_prompt", use_container_width=True):
+                        st.success("✅ 프롬프트가 클립보드에 복사되었습니다!")
+                with col2:
+                    if st.button("🗑️ 패키지 삭제", key="delete_package", use_container_width=True):
+                        del st.session_state['generated_package']
+                        st.rerun()
+                
+                st.success("💡 이 프롬프트를 Deep Research에 붙여넣으세요!")
+            
+            with tab2:
+                st.markdown("### 📊 포트폴리오 CSV 파일")
+                if package['portfolio_csv']:
+                    st.text_area("포트폴리오 데이터 (CSV)", package['portfolio_csv'], height=400)
+                    
+                    # CSV 다운로드 버튼
+                    st.download_button(
+                        label="📥 포트폴리오 CSV 다운로드",
+                        data=package['portfolio_csv'],
+                        file_name=f"portfolio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        key="download_saved_portfolio_csv"
+                    )
+                else:
+                    st.warning("포트폴리오 데이터가 없습니다.")
+            
+            with tab3:
+                st.markdown("### 📝 투자노트 CSV 파일")
+                if package['notes_csv']:
+                    st.text_area("투자노트 데이터 (CSV)", package['notes_csv'], height=400)
+                    
+                    # CSV 다운로드 버튼
+                    st.download_button(
+                        label="📥 투자노트 CSV 다운로드",
+                        data=package['notes_csv'],
+                        file_name=f"investment_notes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        key="download_saved_notes_csv"
+                    )
+                else:
+                    st.warning("투자노트 데이터가 없습니다.")
+            
+            with tab4:
+                st.markdown("### 📈 데이터 미리보기")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("📊 포트폴리오 현황")
+                    if package['portfolio_df'] is not None and not package['portfolio_df'].empty:
+                        st.dataframe(package['portfolio_df'], use_container_width=True)
+                    else:
+                        st.info("포트폴리오 데이터가 없습니다.")
+                
+                with col2:
+                    st.subheader("📝 투자 노트")
+                    if package['notes_df'] is not None and not package['notes_df'].empty:
+                        st.dataframe(package['notes_df'], use_container_width=True)
+                    else:
+                        st.info("투자 노트 데이터가 없습니다.")
     
     # 개별 기능들
     st.markdown("---")
