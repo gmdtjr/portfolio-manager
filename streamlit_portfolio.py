@@ -152,8 +152,9 @@ def sync_investment_notes():
             
             # 포트폴리오 데이터 읽기
             st.info("📋 포트폴리오 데이터를 읽고 있습니다...")
+            from daily_briefing_generator import DailyBriefingGenerator
             generator = DailyBriefingGenerator(spreadsheet_id)
-            portfolio_df = generator.read_portfolio_data()
+            portfolio_df = generator.get_sheet_data("Portfolio")
             
             if portfolio_df.empty:
                 st.warning("⚠️ 포트폴리오 데이터가 없습니다. 먼저 포트폴리오를 업데이트해주세요.")
