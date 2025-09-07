@@ -654,12 +654,11 @@ def main():
         if DAILY_BRIEFING_AVAILABLE:
             try:
                 # 데일리 브리핑 생성기 초기화
-                generator = DailyBriefingGenerator(spreadsheet_id, google_api_key)
+                generator = DailyBriefingGenerator(spreadsheet_id)
                 
                 # 기능 설명
                 st.info("""
                 **📊 데일리 브리핑 생성기**
-                • Gemini API로 오늘의 매크로 이슈 자동 분석
                 • 포트폴리오와 투자 노트 데이터 통합 분석
                 • 전문적인 데일리 브리핑 프롬프트 생성
                 • CSV 파일 다운로드 기능 포함
@@ -669,7 +668,7 @@ def main():
                 # 시간 범위 선택
                 st.subheader("⏰ 분석 기간 선택")
                 time_window_selection = st.radio(
-                    "매크로 이슈 분석 기간을 선택하세요:",
+                    "분석 기간을 선택하세요:",
                     ('24시간', '48시간', '72시간', '1주일'),
                     horizontal=True,
                     help="몇 일 동안의 뉴스를 분석할지 선택하세요"
