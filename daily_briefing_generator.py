@@ -5,8 +5,6 @@ import pandas as pd
 from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google import genai
-import time
 
 def get_time_window_text(selection: str) -> str:
     """UI 선택에 따라 시간 범위 텍스트를 반환합니다."""
@@ -21,13 +19,10 @@ def get_time_window_text(selection: str) -> str:
 class DailyBriefingGenerator:
     """데일리 브리핑 프롬프트 생성기 (CSV 다운로더 기능 포함)"""
     
-    def __init__(self, spreadsheet_id: str, gemini_api_key: str = None):
+    def __init__(self, spreadsheet_id: str):
         self.spreadsheet_id = spreadsheet_id
-        self.gemini_api_key = gemini_api_key or os.getenv('GOOGLE_API_KEY')
         self.service = None
-        self.client = None
         self._authenticate_google()
-        self._setup_gemini()
     
     def _authenticate_google(self):
         """구글 API 인증"""
@@ -54,18 +49,6 @@ class DailyBriefingGenerator:
             print(f"❌ 구글 API 인증 실패: {e}")
             raise
     
-    def _setup_gemini(self):
-        """Gemini API 설정"""
-        try:
-            if self.gemini_api_key:
-                self.client = genai.Client(api_key=self.gemini_api_key)
-                self.model_name = "gemini-2.5-pro"
-                print("✅ Gemini API 설정이 완료되었습니다.")
-            else:
-                print("⚠️ Gemini API 키가 없습니다. 프롬프트 생성 기능을 사용할 수 없습니다.")
-        except Exception as e:
-            print(f"❌ Gemini API 설정 실패: {e}")
-            self.client = None
     
     def get_sheet_data(self, sheet_name: str) -> pd.DataFrame:
         """구글 시트에서 데이터를 DataFrame으로 읽기"""
@@ -103,47 +86,16 @@ class DailyBriefingGenerator:
             print(f"❌ '{sheet_name}' CSV 변환 실패: {e}")
             return ""
     
-    def get_macro_summary(self, time_window_text: str = "지난 24시간 동안") -> str:
-        """Gemini API를 사용하여 지정된 기간의 매크로 이슈 요약 가져오기"""
-        if not self.client:
-            return "Gemini API가 설정되지 않았습니다."
-        
-        try:
-            today = datetime.now().strftime('%Y년 %m월 %d일')
-            macro_prompt = f"""오늘 날짜({today}) 기준, **{time_window_text}** 글로벌 금융 시장에 가장 큰 영향을 미친 핵심 매크로 이슈 5가지를 각각 2줄로 요약해 줘.
-각 이슈가 주식 시장(특히 기술주, 경기순환주)에 미칠 수 있는 긍정적/부정적 영향까지 포함해줘."""
-            
-            print("🤖 Gemini API로 매크로 이슈 요약 요청 중...")
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=macro_prompt
-            )
-            
-            if response.text:
-                print("✅ 매크로 이슈 요약 완료")
-                return response.text
-            else:
-                return "매크로 이슈 요약을 가져올 수 없습니다."
-                
-        except Exception as e:
-            print(f"❌ 매크로 이슈 요약 실패: {e}")
-            return f"매크로 이슈 요약 중 오류가 발생했습니다: {str(e)}"
     
     def generate_complete_prompt(self, time_window_text: str = "지난 24시간 동안") -> str:
         """완성된 프롬프트 생성"""
         try:
             today = datetime.now().strftime('%Y년 %m월 %d일')
             
-            # 매크로 이슈 요약 가져오기
-            macro_summary = self.get_macro_summary(time_window_text)
-            
             # 완성된 프롬프트 생성
             complete_prompt = f"""📊 포트폴리오 및 관심 종목 종합 브리핑 ({today})
 🎯 Mission (임무)
-당신은 월스트리트 최고의 포트폴리오 전략가입니다. 아래 제공되는 **[{time_window_text}의 글로벌 매크로 현황]**과 첨부된 [포트폴리오 파일] 2개를 종합적으로 분석하여, 나의 모든 보유 종목과 관심 종목에 대한 실행 가능한 데일리 브리핑을 생성해주세요.
-
-[{time_window_text}의 글로벌 매크로 현황 (AI 요약)]
-{macro_summary}
+당신은 월스트리트 최고의 포트폴리오 전략가입니다. 먼저, {time_window_text} 동안의 글로벌 매크로 환경을 스스로 리서치하여 핵심 내용을 파악한 후, 그 내용을 바탕으로 첨부된 [포트폴리오 파일] 2개를 종합 분석하여 실행 가능한 데일리 브리핑을 생성해주세요.
 
 [첨부 파일 설명]
 포트폴리오_현황.csv: 나의 현재 보유 자산 현황 (정량 데이터)
@@ -151,49 +103,35 @@ class DailyBriefingGenerator:
 투자_노트.csv: 모든 관심 자산에 대한 나의 투자 아이디어, 리스크 등 (정성 데이터)
 
 🔍 Key Analysis Framework (핵심 분석 프레임워크)
-1. 분석 대상 정의
-보유 종목: 포트폴리오_현황.csv에 포함된 모든 종목.
+1. 글로벌 매크로 환경 리서치 (Self-Research)
+{time_window_text} 동안 발표된 주요 경제 지표(예: CPI, 고용 보고서), 중앙은행의 통화 정책 변화, 주요 원자재 가격 및 환율 변동, 지정학적 이벤트 등을 리서치하고 핵심 내용을 요약해주세요.
 
-관심 종목(Watchlist): 투자_노트.csv에는 있지만 포트폴리오_현황.csv에는 없는 종목.
+2. 투자 아이디어 검증 (Thesis Validation)
+위에서 스스로 리서치한 매크로 환경을 바탕으로, 투자_노트.csv에 기록된 나의 투자 아이디어가 여전히 유효한지 검증해주세요.
 
-2. 분석 지시사항: 모든 종목을 빠짐없이 분석할 것
-아래 Output Format에 따라, '보유 종목'과 '관심 종목' 섹션을 나누어 각각의 모든 종목에 대해 개별 분석을 수행해야 합니다.
+특히 노트에 기록된 '핵심 리스크'가 리서치한 매크로 환경에 의해 촉발될 가능성은 없는지 집중적으로 점검해주세요.
 
-모든 분석은 {time_window_text} 동안 발생한 시장 뉴스, 데이터, 그리고 위에서 제시된 매크로 현황을 종합적으로 고려해야 합니다.
-
-3. 개별 종목 분석의 핵심 관점
-투자 아이디어 검증: 투자_노트.csv에 기록된 나의 투자 아이디어가 여전히 유효한가?
-
-촉매/리스크 점검: 노트에 기록된 '핵심 촉매'나 '핵심 리스크'와 관련된 이벤트가 발생했는가?
-
-성과 원인 분석 (보유 종목 한정): 해당 기간 동안의 주가 움직임이 매크로 영향인가, 개별 종목 이슈인가?
+3. 성과 원인 분석 (Performance Attribution)
+포트폴리오_현황.csv의 {time_window_text} 동안의 성과를 기준으로 Top/Underperformer를 선정하고, 그 원인이 개별 종목 이슈인지, 혹은 리서치한 매크로 흐름의 영향인지 심층적으로 분석해주세요.
 
 📝 Output Format (결과물 형식)
 1. Executive Summary (핵심 요약)
-매크로 요약: {time_window_text} 동안 시장을 움직인 핵심 키워드는?
+매크로 요약: {time_window_text} 동안 시장을 움직인 핵심 키워드는? (자체 리서치 기반)
 
 포트폴리오 영향: 이로 인해 내 포트폴리오와 관심 종목군에 발생한 가장 중요한 변화는?
 
-오늘의 전략: 그래서 오늘 내가 취해야 할 핵심 전략은? (예: 특정 보유 종목 비중 조절, 특정 관심 종목 신규 매수 고려 등)
+오늘의 전략: 그래서 오늘 내가 취해야 할 핵심 전략은?
 
 2. 보유 포트폴리오 분석 (Holdings Analysis)
 이 섹션에서는 포트폴리오_현황.csv에 있는 모든 종목을 아래 형식에 맞춰 하나씩 분석해주세요.
 
 [종목명 1]
 
-핵심 코멘트: {time_window_text} 동안의 주가 움직임과 주요 이슈 요약.
+핵심 코멘트: 리서치한 매크로 환경과 {time_window_text} 동안의 개별 종목 뉴스를 종합한 핵심 이슈 요약.
 
 투자노트 검증: 나의 투자 아이디어는 현재 유효한가? (✅ 유효 / ⚠️ 재검토 필요 / ❌ 훼손) 그 이유는?
 
 Action Item: 비중 유지/확대/축소 등 추천 행동.
-
-[종목명 2]
-
-핵심 코멘트: ...
-
-투자노트 검증: ...
-
-Action Item: ...
 (...모든 보유 종목에 대해 반복...)
 
 3. 관심 종목 분석 (Watchlist Analysis)
@@ -201,19 +139,11 @@ Action Item: ...
 
 [관심 종목명 1]
 
-핵심 코멘트: {time_window_text} 동안 이 종목과 관련된 주요 뉴스나 데이터 변화 요약.
+핵심 코멘트: 리서치한 매크로 환경과 {time_window_text} 동안의 관련 뉴스를 종합한 핵심 이슈 요약.
 
-투자노트 검증: 나의 투자 아이디어가 여전히 매력적인가? 노트에 기록된 '촉매'가 발생할 조짐이 있는가?
+투자노트 검증: 나의 투자 아이디어가 여전히 매력적인가?
 
-Action Item: 지속 관찰 / 신규 매수 고려 / 관심 목록 제외 등 추천 행동.
-
-[관심 종목명 2]
-
-핵심 코멘트: ...
-
-투자노트 검증: ...
-
-Action Item: ...
+Action Item: 지속 관찰 / 신규 매수 고려 등 추천 행동.
 (...모든 관심 종목에 대해 반복...)"""
             
             return complete_prompt
@@ -307,7 +237,6 @@ def main():
         return os.getenv(key)
     
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
-    google_api_key = get_secret('GOOGLE_API_KEY')
     
     if not spreadsheet_id:
         st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
@@ -315,7 +244,7 @@ def main():
     
     # 데일리 브리핑 생성기 초기화
     try:
-        generator = DailyBriefingGeneratorV2(spreadsheet_id, google_api_key)
+        generator = DailyBriefingGenerator(spreadsheet_id)
         available_sheets = generator.get_available_sheets()
         
         if not available_sheets:
@@ -329,7 +258,6 @@ def main():
     # 기능 설명
     st.info("""
     **📊 데일리 브리핑 생성기**
-    • Gemini API로 오늘의 매크로 이슈 자동 분석
     • 포트폴리오와 투자 노트 데이터 통합 분석
     • 전문적인 데일리 브리핑 프롬프트 생성
     • CSV 파일 다운로드 기능 포함
@@ -339,7 +267,7 @@ def main():
     # 시간 범위 선택
     st.subheader("⏰ 분석 기간 선택")
     time_window_selection = st.radio(
-        "매크로 이슈 분석 기간을 선택하세요:",
+        "분석 기간을 선택하세요:",
         ('24시간', '48시간', '72시간', '1주일'),
         horizontal=True,
         help="몇 일 동안의 뉴스를 분석할지 선택하세요"
@@ -359,24 +287,21 @@ def main():
     """)
     
     if st.button("🎯 완전한 패키지 생성", type="primary", use_container_width=True):
-        if not google_api_key:
-            st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다. 프롬프트 생성 기능을 사용할 수 없습니다.")
-        else:
-            try:
-                with st.spinner("🚀 모든 재료를 준비하고 있습니다... (최대 2분 소요)"):
-                    # 완전한 패키지 생성
-                    package = generator.generate_complete_package(time_window_text)
-                    
-                    if 'error' in package:
-                        st.error(f"❌ 패키지 생성 실패: {package['error']}")
-                        return
-                    
-                    # 성공 메시지
-                    st.success("🎉 완전한 패키지가 준비되었습니다!")
-                    st.info(f"📅 생성 시간: {package['timestamp']}")
-                    
-                    # 세션 상태에 패키지 저장
-                    st.session_state['generated_package'] = package
+        try:
+            with st.spinner("🚀 모든 재료를 준비하고 있습니다..."):
+                # 완전한 패키지 생성
+                package = generator.generate_complete_package(time_window_text)
+                
+                if 'error' in package:
+                    st.error(f"❌ 패키지 생성 실패: {package['error']}")
+                    return
+                
+                # 성공 메시지
+                st.success("🎉 완전한 패키지가 준비되었습니다!")
+                st.info(f"📅 생성 시간: {package['timestamp']}")
+                
+                # 세션 상태에 패키지 저장
+                st.session_state['generated_package'] = package
                     
                     # 탭으로 구분하여 표시
                     tab1, tab2, tab3, tab4 = st.tabs(["📋 완성된 프롬프트", "📊 포트폴리오 CSV", "📝 투자노트 CSV", "📈 데이터 미리보기"])
@@ -572,15 +497,12 @@ def main():
     with col1:
         st.markdown("#### 🤖 프롬프트만 생성")
         if st.button("🤖 프롬프트 생성", use_container_width=True):
-            if not google_api_key:
-                st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다.")
-            else:
-                try:
-                    with st.spinner("🤖 프롬프트를 생성하고 있습니다..."):
-                        prompt = generator.generate_complete_prompt(time_window_text)
-                        st.text_area("생성된 프롬프트", prompt, height=400)
-                except Exception as e:
-                    st.error(f"❌ 프롬프트 생성 실패: {e}")
+            try:
+                with st.spinner("🤖 프롬프트를 생성하고 있습니다..."):
+                    prompt = generator.generate_complete_prompt(time_window_text)
+                    st.text_area("생성된 프롬프트", prompt, height=400)
+            except Exception as e:
+                st.error(f"❌ 프롬프트 생성 실패: {e}")
     
     with col2:
         st.markdown("#### 📥 CSV만 다운로드")
