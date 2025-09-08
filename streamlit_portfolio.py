@@ -376,11 +376,21 @@ def display_portfolio_summary(portfolio, total_cash, exchange_rate):
 
 def main():
     """메인 Streamlit 앱"""
-    st.title("📊 AI 포트폴리오 관리 시스템")
-    st.markdown("DB 업데이트 + AI 투자 분석 + 자동화된 프롬프트 생성")
+    # 메인 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2.5rem;">📊 AI 포트폴리오 관리 시스템</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1.1rem;">DB 업데이트 + AI 투자 분석 + 자동화된 프롬프트 생성</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 페이지 선택을 상단으로 이동
-    st.sidebar.title("🎯 AI 투자 도구")
+    st.sidebar.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+        <h2 style="color: white; margin: 0; text-align: center;">🎯 AI 투자 도구</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
     page = st.sidebar.selectbox(
         "원하는 기능을 선택하세요",
         ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기", "🧭 유망 종목 탐색기", "🔬 종목 상세 분석기", "⚖️ 포트폴리오 정밀 진단", "📚 보고서 아카이브"],
@@ -388,10 +398,14 @@ def main():
     )
     
     # 사이드바 설정
-    st.sidebar.title("⚙️ 시스템 설정")
+    st.sidebar.markdown("""
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+        <h2 style="color: white; margin: 0; text-align: center;">⚙️ 시스템 설정</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 환경변수 상태 표시
-    st.sidebar.subheader("🔧 환경변수 상태")
+    st.sidebar.markdown("### 🔧 환경변수 상태")
     
     def get_secret(key):
         try:
@@ -410,15 +424,28 @@ def main():
     for var in env_vars:
         env_status[var] = "✅" if get_secret(var) else "❌"
     
+    # 환경변수 상태를 카드 형태로 표시
     for var, status in env_status.items():
-        st.sidebar.text(f"{status} {var}")
+        color = "#d4edda" if status == "✅" else "#f8d7da"
+        text_color = "#155724" if status == "✅" else "#721c24"
+        st.sidebar.markdown(f"""
+        <div style="background-color: {color}; padding: 0.5rem; border-radius: 5px; margin: 0.25rem 0; border-left: 4px solid {'#28a745' if status == '✅' else '#dc3545'};">
+            <span style="color: {text_color}; font-weight: bold;">{status}</span> 
+            <span style="color: {text_color}; font-size: 0.9rem;">{var}</span>
+        </div>
+        """, unsafe_allow_html=True)
     
     # 계좌 정보 표시
     accounts = load_accounts()
     if accounts:
-        st.sidebar.subheader("🏦 연결된 계좌")
+        st.sidebar.markdown("### 🏦 연결된 계좌")
         for account in accounts:
-            st.sidebar.text(f"• {account.name}: {account.acc_no[:8]}***")
+            st.sidebar.markdown(f"""
+            <div style="background-color: #e3f2fd; padding: 0.75rem; border-radius: 8px; margin: 0.5rem 0; border-left: 4px solid #2196f3;">
+                <div style="font-weight: bold; color: #1976d2;">{account.name}</div>
+                <div style="font-size: 0.85rem; color: #424242;">{account.acc_no[:8]}***</div>
+            </div>
+            """, unsafe_allow_html=True)
     else:
         st.sidebar.subheader("🏦 연결된 계좌")
         st.sidebar.warning("⚠️ 환경변수가 설정되지 않았습니다")

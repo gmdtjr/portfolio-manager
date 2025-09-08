@@ -10,8 +10,13 @@ from portfolio_diagnosis_generator import PortfolioDiagnosisGenerator
 def render_portfolio_diagnosis_page():
     """포트폴리오 정밀 진단기 페이지 렌더링"""
     
-    st.title("⚖️ 포트폴리오 정밀 진단기")
-    st.markdown("버튼을 클릭하면, Deep Research에 사용할 포트폴리오 종합 건강검진 프롬프트를 생성합니다.")
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">⚖️ 포트폴리오 정밀 진단기</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">포트폴리오 종합 건강검진 프롬프트를 생성합니다</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 분석기 초기화
     try:
@@ -21,12 +26,18 @@ def render_portfolio_diagnosis_page():
         return
     
     # 사용 전 안내
-    st.info("💡 이 기능을 사용하기 전, Deep Research에 `포트폴리오_현황.csv`와 `투자_노트.csv` 파일을 먼저 첨부해야 합니다.")
+    st.markdown("""
+    <div style="background-color: #fff3cd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+        <h4 style="color: #856404; margin: 0;">💡 사용 전 안내</h4>
+        <p style="color: #856404; margin: 0.5rem 0 0 0; font-size: 0.95rem;">이 기능을 사용하기 전, Deep Research에 <code>포트폴리오_현황.csv</code>와 <code>투자_노트.csv</code> 파일을 먼저 첨부해야 합니다.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 프롬프트 생성 버튼 및 결과 출력
-    st.subheader("포트폴리오 진단 프롬프트 생성")
+    st.markdown("### 🩺 포트폴리오 진단 프롬프트 생성")
     
-    col1, col2 = st.columns([1, 1])
+    # 버튼 섹션
+    col1, col2 = st.columns([2, 1])
     
     with col1:
         if st.button("🩺 내 포트폴리오 정밀 진단 시작하기", type="primary", key="generate_diagnosis_btn", use_container_width=True):
@@ -44,7 +55,7 @@ def render_portfolio_diagnosis_page():
                 st.error(f"❌ 프롬프트 생성 실패: {e}")
     
     with col2:
-        if st.button("🔄 새로고침", key="refresh_btn"):
+        if st.button("🔄 새로고침", key="refresh_btn", use_container_width=True):
             # 세션 상태 초기화
             if 'diagnosis_prompt' in st.session_state:
                 del st.session_state['diagnosis_prompt']
@@ -52,9 +63,14 @@ def render_portfolio_diagnosis_page():
     
     # 생성된 프롬프트 표시
     if 'diagnosis_prompt' in st.session_state and st.session_state['diagnosis_prompt']:
-        st.subheader("생성된 포트폴리오 진단 프롬프트")
+        st.markdown("### 📊 생성된 포트폴리오 진단 프롬프트")
         
-        st.success("🎯 **포트폴리오 정밀 진단 프롬프트** - 포트폴리오 전체의 구조적 건강 상태를 종합 분석하는 프롬프트입니다.")
+        st.markdown("""
+        <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
+            <h4 style="color: #155724; margin: 0;">🎯 포트폴리오 정밀 진단 프롬프트</h4>
+            <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">포트폴리오 전체의 구조적 건강 상태를 종합 분석하는 프롬프트입니다</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.info("💡 아래 프롬프트를 복사하여 Deep Research에 사용하세요.")
         
@@ -67,29 +83,33 @@ def render_portfolio_diagnosis_page():
         
         # 복사 안내
         st.markdown("""
-        **📋 복사 방법:**
-        1. 위 프롬프트 박스를 클릭하여 전체 선택 (Ctrl+A 또는 Cmd+A)
-        2. 복사 (Ctrl+C 또는 Cmd+C)
-        3. Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)
-        """)
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1rem 0;">
+            <h5 style="color: #856404; margin: 0;">📋 복사 방법</h5>
+            <ol style="color: #856404; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                <li>위 프롬프트 박스를 클릭하여 전체 선택 (Ctrl+A 또는 Cmd+A)</li>
+                <li>복사 (Ctrl+C 또는 Cmd+C)</li>
+                <li>Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 추가 기능들
-        st.subheader("추가 기능")
+        st.markdown("### 🔧 추가 기능")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📊 프롬프트 미리보기", key="preview_btn"):
+            if st.button("📊 프롬프트 미리보기", key="preview_btn", use_container_width=True):
                 st.info("프롬프트가 위에 표시되어 있습니다.")
         
         with col2:
-            if st.button("🗑️ 프롬프트 삭제", key="delete_btn"):
+            if st.button("🗑️ 프롬프트 삭제", key="delete_btn", use_container_width=True):
                 if 'diagnosis_prompt' in st.session_state:
                     del st.session_state['diagnosis_prompt']
                 st.rerun()
         
         with col3:
-            if st.button("🔄 새 진단", key="new_diagnosis_btn"):
+            if st.button("🔄 새 진단", key="new_diagnosis_btn", use_container_width=True):
                 if 'diagnosis_prompt' in st.session_state:
                     del st.session_state['diagnosis_prompt']
                 st.rerun()

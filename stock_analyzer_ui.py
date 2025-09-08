@@ -21,8 +21,13 @@ def get_secret(key):
 def render_stock_analyzer_page():
     """종목 상세 분석기 페이지 렌더링"""
     
-    st.title("🔬 종목 상세 분석기")
-    st.markdown("분석할 종목을 입력하면, **투자 노트의 유무에 따라 맞춤형 분석 프롬프트**를 생성합니다.")
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">🔬 종목 상세 분석기</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">투자 노트의 유무에 따라 맞춤형 분석 프롬프트를 생성합니다</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 설정값 확인
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
@@ -40,7 +45,15 @@ def render_stock_analyzer_page():
         return
     
     # 사용자 입력 필드
-    st.subheader("1. 분석할 종목 입력")
+    st.markdown("### 1️⃣ 분석할 종목 입력")
+    
+    # 입력 카드
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #667eea; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #495057; font-size: 0.95rem;">분석하고 싶은 종목의 이름이나 코드를 입력하세요</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     user_stock_name = st.text_input(
         "종목명 또는 코드",
         placeholder="예시: ASML, 엔비디아, 005930, 삼성전자",
@@ -49,12 +62,13 @@ def render_stock_analyzer_page():
     )
     
     # 프롬프트 생성 버튼 및 결과 출력
-    st.subheader("2. Deep Research 프롬프트 생성")
+    st.markdown("### 2️⃣ Deep Research 프롬프트 생성")
     
-    col1, col2 = st.columns([1, 1])
+    # 버튼 섹션
+    col1, col2 = st.columns([2, 1])
     
     with col1:
-        if st.button("📄 상세 분석 프롬프트 생성하기", type="primary", key="generate_prompt_btn"):
+        if st.button("📄 상세 분석 프롬프트 생성하기", type="primary", key="generate_prompt_btn", use_container_width=True):
             if not user_stock_name.strip():
                 st.warning("⚠️ 분석할 종목의 이름이나 코드를 먼저 입력해주세요.")
             else:
@@ -77,7 +91,7 @@ def render_stock_analyzer_page():
                     st.error(f"❌ 프롬프트 생성 실패: {e}")
     
     with col2:
-        if st.button("🔄 새로고침", key="refresh_btn"):
+        if st.button("🔄 새로고침", key="refresh_btn", use_container_width=True):
             # 세션 상태 초기화
             if 'generated_prompt' in st.session_state:
                 del st.session_state['generated_prompt']
@@ -89,13 +103,23 @@ def render_stock_analyzer_page():
     
     # 생성된 프롬프트 표시
     if 'generated_prompt' in st.session_state and st.session_state['generated_prompt']:
-        st.subheader(f"3. {st.session_state['analyzed_stock']} 분석 프롬프트")
+        st.markdown(f"### 3️⃣ {st.session_state['analyzed_stock']} 분석 프롬프트")
         
         # 프롬프트 타입 표시
         if st.session_state.get('found_in_db', False):
-            st.success("🎯 **맞춤형 검증 프롬프트** - 투자 노트 기반으로 생성된 개인화된 분석 프롬프트입니다.")
+            st.markdown("""
+            <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
+                <h4 style="color: #155724; margin: 0;">🎯 맞춤형 검증 프롬프트</h4>
+                <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">투자 노트 기반으로 생성된 개인화된 분석 프롬프트입니다</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("📊 **표준 분석 프롬프트** - 일반적인 종목 분석 프롬프트입니다.")
+            st.markdown("""
+            <div style="background-color: #cce7ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 1rem;">
+                <h4 style="color: #004085; margin: 0;">📊 표준 분석 프롬프트</h4>
+                <p style="color: #004085; margin: 0.5rem 0 0 0; font-size: 0.9rem;">일반적인 종목 분석 프롬프트입니다</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         st.info("💡 아래 프롬프트를 복사하여 Deep Research에 사용하세요.")
         
@@ -108,23 +132,27 @@ def render_stock_analyzer_page():
         
         # 복사 안내
         st.markdown("""
-        **📋 복사 방법:**
-        1. 위 프롬프트 박스를 클릭하여 전체 선택 (Ctrl+A 또는 Cmd+A)
-        2. 복사 (Ctrl+C 또는 Cmd+C)
-        3. Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)
-        """)
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1rem 0;">
+            <h5 style="color: #856404; margin: 0;">📋 복사 방법</h5>
+            <ol style="color: #856404; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                <li>위 프롬프트 박스를 클릭하여 전체 선택 (Ctrl+A 또는 Cmd+A)</li>
+                <li>복사 (Ctrl+C 또는 Cmd+C)</li>
+                <li>Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 추가 기능들
-        st.subheader("4. 추가 기능")
+        st.markdown("### 4️⃣ 추가 기능")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📊 프롬프트 미리보기", key="preview_btn"):
+            if st.button("📊 프롬프트 미리보기", key="preview_btn", use_container_width=True):
                 st.info("프롬프트가 위에 표시되어 있습니다.")
         
         with col2:
-            if st.button("🗑️ 프롬프트 삭제", key="delete_btn"):
+            if st.button("🗑️ 프롬프트 삭제", key="delete_btn", use_container_width=True):
                 if 'generated_prompt' in st.session_state:
                     del st.session_state['generated_prompt']
                 if 'analyzed_stock' in st.session_state:
@@ -134,7 +162,7 @@ def render_stock_analyzer_page():
                 st.rerun()
         
         with col3:
-            if st.button("📈 다른 종목 분석", key="new_analysis_btn"):
+            if st.button("📈 다른 종목 분석", key="new_analysis_btn", use_container_width=True):
                 if 'generated_prompt' in st.session_state:
                     del st.session_state['generated_prompt']
                 if 'analyzed_stock' in st.session_state:
