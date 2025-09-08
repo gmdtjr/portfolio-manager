@@ -20,6 +20,10 @@ def generate_exploration_prompt(investment_idea: str, exclusions: str = "") -> s
 ## **핵심 투자 테마:**
 {investment_theme}
 
+## **[중요 지시사항]**
+- **모든 결과물은 반드시 한글로만 작성해주세요.**
+- 영문 용어는 필요한 경우에만 괄호 안에 병기하고(예: 경제적 해자(Economic Moat)), 그 외 모든 서술은 한글로 해야 합니다.
+
 ## **분석 목표:**
 위 투자 테마와 관련하여, 향후 5년간 가장 높은 성장 잠재력을 가진 **유망 산업 Top 3**와, 각 산업 내에서 가장 강력한 경쟁 우위(Economic Moat)를 가진 **핵심 종목(Top Pick) 1~2개**를 발굴하시오.
 
