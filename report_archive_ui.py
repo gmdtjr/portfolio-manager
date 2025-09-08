@@ -18,17 +18,35 @@ def get_secret(key):
 
 def render_report_archive_page():
     """보고서 아카이브 페이지를 렌더링합니다."""
+    
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">📚 보고서 아카이브</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">Deep Research 보고서를 체계적으로 저장하고 관리합니다</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # 환경변수 확인
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
     google_api_key = get_secret('GOOGLE_API_KEY')
     
     if not spreadsheet_id:
-        st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     if not google_api_key:
-        st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다.")
-        st.info("💡 보고서 요약 생성 기능을 사용하려면 Gemini API 키가 필요합니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_API_KEY가 설정되지 않았습니다. 보고서 요약 생성 기능을 사용하려면 Gemini API 키가 필요합니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     try:
@@ -36,13 +54,18 @@ def render_report_archive_page():
         archive_manager = ReportArchiveManager(spreadsheet_id, google_api_key)
         
         # 기능 설명
-        st.info("""
-        **📚 보고서 아카이브**
-        • Deep Research에서 생성된 보고서를 체계적으로 저장
-        • AI가 자동으로 보고서 요약 및 관련 종목 추출
-        • 과거 보고서 검색 및 조회 기능
-        • 투자 인사이트 누적 및 분석
-        """)
+        st.markdown("### 💡 기능 설명")
+        st.markdown("""
+        <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 2rem;">
+            <h4 style="color: #1976d2; margin: 0;">📚 보고서 아카이브</h4>
+            <ul style="color: #1976d2; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                <li>Deep Research에서 생성된 보고서를 체계적으로 저장</li>
+                <li>AI가 자동으로 보고서 요약 및 관련 종목 추출</li>
+                <li>과거 보고서 검색 및 조회 기능</li>
+                <li>투자 인사이트 누적 및 분석</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 탭으로 기능 구분
         tab1, tab2, tab3 = st.tabs(["📝 보고서 저장", "📋 보고서 목록", "🔍 보고서 검색"])

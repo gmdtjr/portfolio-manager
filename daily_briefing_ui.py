@@ -30,19 +30,35 @@ def get_time_window_text(selection: str) -> str:
 
 def render_daily_briefing_page():
     """데일리 브리핑 생성기 페이지를 렌더링합니다."""
-    st.subheader("🎯 데일리 브리핑 생성기")
-    st.markdown("매크로 이슈 분석 + 포트폴리오 데이터 + 완성된 프롬프트 생성")
+    
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">🎯 데일리 브리핑 생성기</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">매크로 이슈 분석 + 포트폴리오 데이터 + 완성된 프롬프트 생성</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 환경변수 확인
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
     google_api_key = get_secret('GOOGLE_API_KEY')
     
     if not spreadsheet_id:
-        st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     if not google_api_key:
-        st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다. 프롬프트 생성 기능을 사용할 수 없습니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_API_KEY가 설정되지 않았습니다. 프롬프트 생성 기능을 사용할 수 없습니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     # 데일리 브리핑 생성기 import
@@ -108,16 +124,28 @@ def render_daily_briefing_page():
                         
                         with tab1:
                             st.markdown("### 🎯 Deep Research에 바로 사용할 프롬프트")
+                            
+                            # 프롬프트 타입 표시
+                            st.markdown("""
+                            <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
+                                <h4 style="color: #155724; margin: 0;">🎯 데일리 브리핑 프롬프트</h4>
+                                <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">매크로 분석과 포트폴리오 데이터를 종합한 완성된 프롬프트입니다</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
                             st.text_area("완성된 데일리 브리핑 프롬프트", package['complete_prompt'], height=600)
                             
                             # 복사 방법 안내
-                            st.markdown("### 📋 프롬프트 복사 방법")
-                            st.info("""
-                            **💡 프롬프트 복사 방법:**
-                            1. 위 텍스트 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)
-                            2. 복사 (Ctrl+C 또는 Cmd+C)
-                            3. Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)
-                            """)
+                            st.markdown("""
+                            <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1rem 0;">
+                                <h5 style="color: #856404; margin: 0;">📋 복사 방법</h5>
+                                <ol style="color: #856404; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                                    <li>위 텍스트 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)</li>
+                                    <li>복사 (Ctrl+C 또는 Cmd+C)</li>
+                                    <li>Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)</li>
+                                </ol>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
                             # 프롬프트를 별도로 표시 (선택하기 쉬운 형태)
                             st.markdown("### 📄 복사용 프롬프트")

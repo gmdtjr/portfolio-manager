@@ -18,34 +18,61 @@ def get_secret(key):
 
 def render_investment_notes_page():
     """투자 노트 자동 생성 페이지를 렌더링합니다."""
-    st.header("📝 투자 노트 자동 생성")
-    st.markdown("기업 보고서를 입력하면 AI가 자동으로 투자 노트 초안을 생성합니다.")
+    
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">📝 투자 노트 자동 생성</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">기업 보고서를 입력하면 AI가 자동으로 투자 노트 초안을 생성합니다</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 환경변수 확인
     spreadsheet_id = get_secret('GOOGLE_SPREADSHEET_ID')
     google_api_key = get_secret('GOOGLE_API_KEY')
     
     if not spreadsheet_id:
-        st.error("❌ GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_SPREADSHEET_ID가 설정되지 않았습니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     if not google_api_key:
-        st.error("❌ GOOGLE_API_KEY가 설정되지 않았습니다.")
-        st.info("💡 투자 노트 자동 생성을 위해 GOOGLE_API_KEY가 필요합니다.")
+        st.markdown("""
+        <div style="background-color: #f8d7da; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+            <h4 style="color: #721c24; margin: 0;">❌ 설정 오류</h4>
+            <p style="color: #721c24; margin: 0.5rem 0 0 0; font-size: 0.9rem;">GOOGLE_API_KEY가 설정되지 않았습니다. 투자 노트 자동 생성을 위해 필요합니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
         return
     
     # 기능 설명
-    st.subheader("💡 기능 설명")
-    st.info("""
-    **📝 투자 노트 자동 생성**
-    • 기업 보고서 분석을 통한 투자 아이디어 추출
-    • 투자 확신도, 섹터, 리스크 자동 분류
-    • 목표 주가 및 매도 조건 제안
-    • 구글 스프레드시트 자동 저장
-    """)
+    st.markdown("### 💡 기능 설명")
+    st.markdown("""
+    <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 2rem;">
+        <h4 style="color: #1976d2; margin: 0;">📝 투자 노트 자동 생성</h4>
+        <ul style="color: #1976d2; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+            <li>기업 보고서 분석을 통한 투자 아이디어 추출</li>
+            <li>투자 확신도, 섹터, 리스크 자동 분류</li>
+            <li>목표 주가 및 매도 조건 제안</li>
+            <li>구글 스프레드시트 자동 저장</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 입력 폼
-    st.subheader("📋 기업 정보 입력")
+    st.markdown("### 📋 기업 정보 입력")
+    
+    # 입력 안내
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #667eea; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #495057; font-size: 0.95rem;">분석할 기업의 기본 정보와 보고서를 입력하세요</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     with st.form("investment_note_form"):
         
         col1, col2 = st.columns(2)
