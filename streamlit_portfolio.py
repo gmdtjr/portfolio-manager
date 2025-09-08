@@ -474,13 +474,17 @@ def main():
     
     # 페이지별 컨텐츠
     if page == "🔄 포트폴리오 업데이트":
-        # 메인 컨텐츠
-        st.header("🔄 포트폴리오 업데이트")
-        st.markdown("한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다.")
+        # 페이지 헤더
+        st.markdown("""
+        <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+            <h1 style="color: white; margin: 0; font-size: 2rem;">🔄 포트폴리오 업데이트</h1>
+            <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">한국투자증권 API를 통해 포트폴리오를 조회하고 구글 스프레드시트에 업데이트합니다</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if accounts:
             # 주요 기능 버튼들
-            st.subheader("🚀 주요 기능")
+            st.markdown("### 🚀 주요 기능")
             
             col1, col2 = st.columns(2)
             
@@ -493,24 +497,40 @@ def main():
                     sync_investment_notes()
             
             # 기능 설명
-            st.subheader("💡 기능 설명")
+            st.markdown("### 💡 기능 설명")
             
             col1, col2 = st.columns(2)
             
             with col1:
-                st.info("**🔄 포트폴리오 업데이트**")
-                st.write("• 한국투자증권 API를 통해 실시간 포트폴리오 조회")
-                st.write("• 구글 스프레드시트에 자동 업데이트")
-                st.write("• 환율 정보 포함")
+                st.markdown("""
+                <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 1rem;">
+                    <h4 style="color: #1976d2; margin: 0;">🔄 포트폴리오 업데이트</h4>
+                    <ul style="color: #1976d2; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                        <li>한국투자증권 API를 통해 실시간 포트폴리오 조회</li>
+                        <li>구글 스프레드시트에 자동 업데이트</li>
+                        <li>환율 정보 포함</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
-                st.info("**📝 투자 노트 동기화**")
-                st.write("• 기존 투자 노트의 포트폴리오 상태 업데이트")
-                st.write("• 보유중/관심종목/매도완료 상태 동기화")
-                st.write("• 매수/매도 날짜 정보 추가")
+                st.markdown("""
+                <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 1rem;">
+                    <h4 style="color: #1976d2; margin: 0;">📝 투자 노트 동기화</h4>
+                    <ul style="color: #1976d2; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                        <li>기존 투자 노트의 포트폴리오 상태 업데이트</li>
+                        <li>보유중/관심종목/매도완료 상태 동기화</li>
+                        <li>매수/매도 날짜 정보 추가</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.warning("⚠️ 환경변수를 설정한 후 포트폴리오 업데이트를 사용할 수 있습니다.")
-            st.info("📝 Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.")
+            st.markdown("""
+            <div style="background-color: #fff3cd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+                <h4 style="color: #856404; margin: 0;">⚠️ 설정 필요</h4>
+                <p style="color: #856404; margin: 0.5rem 0 0 0; font-size: 0.95rem;">환경변수를 설정한 후 포트폴리오 업데이트를 사용할 수 있습니다. Streamlit Cloud 대시보드에서 환경변수를 설정해주세요.</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     elif page == "📝 투자 노트 자동 생성":
         # 투자 노트 자동 생성 기능

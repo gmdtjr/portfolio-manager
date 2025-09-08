@@ -37,21 +37,38 @@ def generate_exploration_prompt(investment_idea: str, exclusions: str = "") -> s
 
 def render_exploration_page():
     """유망 종목 탐색기 페이지 렌더링"""
-    # 유망 종목 탐색기 기능
-    st.subheader("🧭 유망 산업 및 종목 탐색기")
-    st.markdown("나의 투자 아이디어를 입력하면, Deep Research에 사용할 최적의 분석 프롬프트를 생성해줍니다.")
+    
+    # 페이지 헤더
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">🧭 유망 산업 및 종목 탐색기</h1>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0; font-size: 1rem;">나의 투자 아이디어를 입력하면 Deep Research에 사용할 최적의 분석 프롬프트를 생성합니다</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 기능 설명
-    st.info("""
-    **🧭 유망 종목 탐색기**
-    • 투자 아이디어를 입력하면 최적화된 Deep Research 프롬프트 생성
-    • 유망 산업 Top 3 및 핵심 종목 발굴을 위한 체계적 분석 프롬프트
-    • 제외 조건 설정으로 원하는 분석 범위 조정 가능
-    • Deep Research에 바로 사용할 수 있는 완성된 프롬프트 제공
-    """)
+    st.markdown("### 💡 기능 설명")
+    st.markdown("""
+    <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 2rem;">
+        <h4 style="color: #1976d2; margin: 0;">🧭 유망 종목 탐색기</h4>
+        <ul style="color: #1976d2; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+            <li>투자 아이디어를 입력하면 최적화된 Deep Research 프롬프트 생성</li>
+            <li>유망 산업 Top 3 및 핵심 종목 발굴을 위한 체계적 분석 프롬프트</li>
+            <li>제외 조건 설정으로 원하는 분석 범위 조정 가능</li>
+            <li>Deep Research에 바로 사용할 수 있는 완성된 프롬프트 제공</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 사용자 입력 필드
-    st.subheader("1. 나의 투자 아이디어 입력")
+    st.markdown("### 📝 나의 투자 아이디어 입력")
+    
+    # 입력 안내
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #667eea; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #495057; font-size: 0.95rem;">관심 있는 투자 테마나 아이디어를 자유롭게 서술해주세요</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     user_idea = st.text_area(
         "투자 아이디어를 자유롭게 입력하세요",
@@ -67,17 +84,26 @@ def render_exploration_page():
     )
     
     # 프롬프트 생성 버튼 및 결과 출력
-    st.subheader("2. Deep Research 프롬프트 생성")
+    st.markdown("### 🚀 Deep Research 프롬프트 생성")
     
     if st.button("🤖 최적 프롬프트 생성하기", type="primary", use_container_width=True):
         if not user_idea.strip():
-            st.warning("투자 아이디어를 먼저 입력해주세요.")
+            st.markdown("""
+            <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 1rem;">
+                <h4 style="color: #856404; margin: 0;">⚠️ 입력 필요</h4>
+                <p style="color: #856404; margin: 0.5rem 0 0 0; font-size: 0.9rem;">투자 아이디어를 먼저 입력해주세요.</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             # 템플릿 기반으로 프롬프트 즉시 생성
             final_prompt = generate_exploration_prompt(user_idea, user_exclusions)
             
-            st.success("✅ 프롬프트 생성이 완료되었습니다!")
-            st.info("💡 아래 내용을 복사하여 Deep Research에 사용하세요.")
+            st.markdown("""
+            <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
+                <h4 style="color: #155724; margin: 0;">✅ 프롬프트 생성 완료</h4>
+                <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">아래 프롬프트를 복사하여 Deep Research에 사용하세요</p>
+            </div>
+            """, unsafe_allow_html=True)
             
             # 생성된 프롬프트 표시
             st.text_area(
@@ -87,19 +113,17 @@ def render_exploration_page():
                 help="이 프롬프트를 Deep Research에 붙여넣어 사용하세요."
             )
             
-            # 사용법 안내
-            st.markdown("---")
-            st.markdown("### 📖 사용법 안내")
-            st.info("""
-            **🎯 Deep Research 사용 방법:**
-            1. **프롬프트 복사**: 위의 생성된 프롬프트를 복사 (Ctrl+A → Ctrl+C)
-            2. **Deep Research 접속**: Gemini Deep Research에 접속
-            3. **프롬프트 붙여넣기**: 복사한 프롬프트를 붙여넣고 실행 (Ctrl+V)
-            4. **분석 결과 확인**: AI가 유망 산업과 종목을 분석하여 보고서 생성
-            5. **보고서 저장**: 생성된 보고서를 "📚 보고서 아카이브"에서 저장
-            
-            **✨ 이제 체계적인 투자 기회 발굴이 가능합니다!**
-            """)
+            # 복사 방법 안내
+            st.markdown("""
+            <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1rem 0;">
+                <h5 style="color: #856404; margin: 0;">📋 복사 방법</h5>
+                <ol style="color: #856404; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                    <li>위 텍스트 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)</li>
+                    <li>복사 (Ctrl+C 또는 Cmd+C)</li>
+                    <li>Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)</li>
+                </ol>
+            </div>
+            """, unsafe_allow_html=True)
             
             # 프롬프트 미리보기
             st.markdown("### 📄 프롬프트 미리보기")
@@ -107,7 +131,7 @@ def render_exploration_page():
     
     # 예시 섹션
     st.markdown("---")
-    st.subheader("💡 투자 아이디어 예시")
+    st.markdown("### 💡 투자 아이디어 예시")
     
     col1, col2 = st.columns(2)
     
