@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 
 
 class StockAnalyzerGenerator:
-    """종목 상세 분석 프롬프트 생성기 (DB 연동)"""
+    """종목 상세 분석 프롬프트 생성기 (투자 노트 연동)"""
     
     def __init__(self, spreadsheet_id: str = None):
         """
@@ -101,7 +101,7 @@ class StockAnalyzerGenerator:
     
     def generate_contextual_deep_dive_prompt(self, stock_name: str, stock_note: pd.Series) -> str:
         """
-        (DB에 정보가 있을 때) 투자 노트를 기반으로 한 맞춤형 검증 프롬프트를 생성합니다.
+        (투자 노트에 정보가 있을 때) 투자 노트를 기반으로 한 맞춤형 검증 프롬프트를 생성합니다.
         
         Args:
             stock_name (str): 종목명
@@ -176,7 +176,7 @@ class StockAnalyzerGenerator:
     
     def generate_generic_deep_dive_prompt(self, stock_name: str) -> str:
         """
-        (DB에 정보가 없을 때) 일반적인 종목 분석 프롬프트를 생성합니다.
+        (투자 노트에 정보가 없을 때) 일반적인 종목 분석 프롬프트를 생성합니다.
         
         Args:
             stock_name (str): 종목명
@@ -231,17 +231,17 @@ class StockAnalyzerGenerator:
     
     def generate_deep_dive_prompt(self, stock_name: str) -> tuple[str, bool]:
         """
-        종목명을 받아 DB 정보 유무에 따라 적절한 프롬프트를 생성합니다.
+        종목명을 받아 투자 노트 정보 유무에 따라 적절한 프롬프트를 생성합니다.
         
         Args:
             stock_name (str): 분석할 종목명 또는 코드
             
         Returns:
-            tuple[str, bool]: (생성된 프롬프트, DB에서 정보를 찾았는지 여부)
+            tuple[str, bool]: (생성된 프롬프트, 투자 노트에서 정보를 찾았는지 여부)
         """
         sanitized_stock_name = stock_name.strip()
         
-        # DB에서 해당 종목 노트 검색
+        # 투자 노트에서 해당 종목 정보 검색
         stock_note = self.find_stock_note(sanitized_stock_name)
         
         # 노트 유무에 따라 다른 프롬프트 생성

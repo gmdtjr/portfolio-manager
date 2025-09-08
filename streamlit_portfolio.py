@@ -53,6 +53,12 @@ try:
 except ImportError:
     STOCK_ANALYZER_UI_AVAILABLE = False
 
+try:
+    from portfolio_diagnosis_ui import render_portfolio_diagnosis_page
+    PORTFOLIO_DIAGNOSIS_UI_AVAILABLE = True
+except ImportError:
+    PORTFOLIO_DIAGNOSIS_UI_AVAILABLE = False
+
 # 페이지 설정
 st.set_page_config(
     page_title="AI 포트폴리오 관리 시스템",
@@ -377,7 +383,7 @@ def main():
     st.sidebar.title("🎯 AI 투자 도구")
     page = st.sidebar.selectbox(
         "원하는 기능을 선택하세요",
-        ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기", "🧭 유망 종목 탐색기", "🔬 종목 상세 분석기", "📚 보고서 아카이브"],
+        ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기", "🧭 유망 종목 탐색기", "🔬 종목 상세 분석기", "⚖️ 포트폴리오 정밀 진단", "📚 보고서 아카이브"],
         help="AI 기반 투자 분석 및 포트폴리오 관리 도구를 선택하세요"
     )
     
@@ -528,6 +534,16 @@ def main():
         
         # 분리된 모듈에서 페이지 렌더링
         render_stock_analyzer_page()
+    
+    elif page == "⚖️ 포트폴리오 정밀 진단":
+        # 포트폴리오 정밀 진단기 기능
+        if not PORTFOLIO_DIAGNOSIS_UI_AVAILABLE:
+            st.error("❌ 포트폴리오 정밀 진단기 기능을 사용할 수 없습니다.")
+            st.info("💡 필요한 모듈이 설치되지 않았습니다.")
+            return
+        
+        # 분리된 모듈에서 페이지 렌더링
+        render_portfolio_diagnosis_page()
 
 if __name__ == "__main__":
     main()
