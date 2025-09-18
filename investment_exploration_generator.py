@@ -62,41 +62,40 @@ def generate_exploration_prompt(investment_idea: str, exclusions: str = "") -> s
     
     return master_prompt_template.strip()
 
-# --- 스트림릿 UI 구성 ---
+def render_exploration_page():
+    """유망 종목 탐색기 페이지 렌더링"""
+    
+    st.title("🧭 유망 산업 및 종목 탐색기 (균형 분석)")
+    st.markdown("나의 투자 아이디어를 입력하면, Deep Research에 사용할 균형 잡힌 분석 프롬프트를 생성해줍니다.")
 
-st.set_page_config(layout="wide", page_title="유망 종목 탐색기")
+    # 1. 사용자 입력 필드
+    st.subheader("1. 나의 투자 아이디어 입력")
+    user_idea = st.text_area(
+        "label",
+        placeholder="예시: 저는 인구 고령화와 자동화 트렌드에 관심이 많습니다. 특히, 노동력 부족 문제를 해결할 수 있는 로봇 기술이나, 노년층의 삶의 질을 높여주는 헬스케어 기술에 장기 투자하고 싶습니다.",
+        height=150,
+        label_visibility="collapsed"
+    )
 
-st.title("🧭 유망 산업 및 종목 탐색기 (균형 분석)")
-st.markdown("나의 투자 아이디어를 입력하면, Deep Research에 사용할 균형 잡힌 분석 프롬프트를 생성해줍니다.")
+    user_exclusions = st.text_input(
+        "선택: 제외할 산업/종목이 있다면 입력하세요.",
+        placeholder="예시: 변동성이 큰 바이오 신약 개발 기업"
+    )
 
-# 1. 사용자 입력 필드
-st.subheader("1. 나의 투자 아이디어 입력")
-user_idea = st.text_area(
-    "label",
-    placeholder="예시: 저는 인구 고령화와 자동화 트렌드에 관심이 많습니다. 특히, 노동력 부족 문제를 해결할 수 있는 로봇 기술이나, 노년층의 삶의 질을 높여주는 헬스케어 기술에 장기 투자하고 싶습니다.",
-    height=150,
-    label_visibility="collapsed"
-)
+    # 2. 프롬프트 생성 버튼 및 결과 출력
+    st.subheader("2. Deep Research 프롬프트 생성")
 
-user_exclusions = st.text_input(
-    "선택: 제외할 산업/종목이 있다면 입력하세요.",
-    placeholder="예시: 변동성이 큰 바이오 신약 개발 기업"
-)
-
-# 2. 프롬프트 생성 버튼 및 결과 출력
-st.subheader("2. Deep Research 프롬프트 생성")
-
-if st.button("🤖 균형 분석 프롬프트 생성하기", type="primary"):
-    if not user_idea.strip():
-        st.warning("투자 아이디어를 먼저 입력해주세요.")
-    else:
-        # 템플릿 기반으로 프롬프트 즉시 생성
-        final_prompt = generate_exploration_prompt(user_idea, user_exclusions)
-        
-        st.info("✅ 프롬프트 생성이 완료되었습니다. 아래 내용을 복사하여 Deep Research에 사용하세요.")
-        st.text_area(
-            "label",
-            value=final_prompt,
-            height=600,
-            label_visibility="collapsed"
-        )
+    if st.button("🤖 균형 분석 프롬프트 생성하기", type="primary"):
+        if not user_idea.strip():
+            st.warning("투자 아이디어를 먼저 입력해주세요.")
+        else:
+            # 템플릿 기반으로 프롬프트 즉시 생성
+            final_prompt = generate_exploration_prompt(user_idea, user_exclusions)
+            
+            st.info("✅ 프롬프트 생성이 완료되었습니다. 아래 내용을 복사하여 Deep Research에 사용하세요.")
+            st.text_area(
+                "label",
+                value=final_prompt,
+                height=600,
+                label_visibility="collapsed"
+            )
