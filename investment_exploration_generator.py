@@ -92,35 +92,30 @@ def render_exploration_page():
             # 템플릿 기반으로 프롬프트 즉시 생성
             final_prompt = generate_exploration_prompt(user_idea, user_exclusions)
             
-            st.info("✅ 프롬프트 생성이 완료되었습니다. 아래 내용을 복사하여 Deep Research에 사용하세요.")
+            st.markdown("""
+            <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
+                <h4 style="color: #155724; margin: 0;">✅ 유망 종목 탐색 프롬프트</h4>
+                <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">균형 잡힌 시각의 산업 및 종목 발굴 프롬프트입니다</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # 복사 버튼과 함께 텍스트 영역 표시
-            col1, col2 = st.columns([4, 1])
+            st.info("💡 아래 프롬프트를 복사하여 Deep Research에 사용하세요.")
             
-            with col1:
-                st.text_area(
-                    "생성된 Deep Research 프롬프트",
-                    value=final_prompt,
-                    height=600,
-                    help="이 프롬프트를 Deep Research에 붙여넣어 사용하세요."
-                )
+            # 프롬프트 표시
+            st.code(
+                final_prompt,
+                language="text",
+                line_numbers=False
+            )
             
-            with col2:
-                if st.button("📋 복사", help="프롬프트를 클립보드에 복사합니다"):
-                    st.write("✅ 복사 완료!")
-            
-            # 복사 방법 안내
+            # 복사 안내
             st.markdown("""
             <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1rem 0;">
                 <h5 style="color: #856404; margin: 0;">📋 복사 방법</h5>
                 <ol style="color: #856404; margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
-                    <li>위 텍스트 박스에서 전체 텍스트를 선택 (Ctrl+A 또는 Cmd+A)</li>
+                    <li>위 프롬프트 박스를 클릭하여 전체 선택 (Ctrl+A 또는 Cmd+A)</li>
                     <li>복사 (Ctrl+C 또는 Cmd+C)</li>
                     <li>Deep Research에 붙여넣기 (Ctrl+V 또는 Cmd+V)</li>
                 </ol>
             </div>
             """, unsafe_allow_html=True)
-            
-            # 프롬프트 미리보기
-            st.markdown("### 📄 프롬프트 미리보기")
-            st.code(final_prompt, language="markdown")
