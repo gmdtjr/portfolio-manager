@@ -48,16 +48,6 @@ def generate_exploration_prompt(investment_idea: str, exclusions: str = "") -> s
 ---
 ### **최종 의사결정을 위한 핵심 질문 (Key Questions for Decision):**
 - **지시사항:** 위 모든 분석을 종합하여, 내가 이 산업/종목들에 대한 최종 투자를 '결정'하기 위해 스스로에게 던져야 할 가장 중요한 질문 3가지를 제시해주시오.
-
-### **투자 노트 DB 생성을 위한 요약 (For DB Sync):**
-- **지시사항:** 위에서 발굴된 각 핵심 종목에 대해, 내가 '투자 노트'를 새로 작성할 수 있도록 아래 형식에 맞춰 종목별로 요약해주십시오.
-- **[종목명 1]**
-  - **투자 아이디어 (Thesis):**
-  - **핵심 촉매 (Catalysts):**
-  - **핵심 리스크 (Risks):**
-  - **핵심 모니터링 지표 (KPIs):**
-- **[종목명 2]**
-  - ... (위와 동일한 형식으로 반복) ...
 """
     
     return master_prompt_template.strip()
