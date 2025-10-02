@@ -17,6 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import (
     TimeoutException, 
     NoSuchElementException, 
@@ -52,7 +53,7 @@ class GeminiWebAutomation:
         # Gemini Deep Research URL
         self.gemini_url = "https://gemini.google.com/app/topic"
     
-    def _setup_driver(self) -> webdriver.Chrome:
+    def _setup_driver(self) -> webdriver.WebDriver:
         """Chrome 드라이버 설정 및 초기화"""
         try:
             chrome_options = Options()
@@ -184,7 +185,7 @@ class GeminiWebAutomation:
             self.logger.error(f"로그인 상태 확인 실패: {str(e)}")
             return False
     
-    def find_input_field(self) -> Optional[webdriver.Chrome.webelement.WebElement]:
+    def find_input_field(self) -> Optional[WebElement]:
         """텍스트 입력 필드 찾기"""
         try:
             # 다양한 입력 필드 선택자 시도
