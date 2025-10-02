@@ -16,29 +16,18 @@ try:
     AUTOMATION_AVAILABLE = True
 except ImportError as e:
     AUTOMATION_AVAILABLE = False
-    # Streamlit Cloud에서는 Selenium 사용 불가하므로 우회 방법 제공
-    pass
+    st.error(f"❌ Gemini 웹 자동화 모듈을 불러올 수 없습니다: {str(e)}")
 
 def show_gemini_setup_guide():
     """Gemini 설정 가이드 표시"""
-    if AUTOMATION_AVAILABLE:
-        st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
-            <h4 style="color: #856404; margin: 0;">🚨 Gemini 자동화 사용 전 설정 필요</h4>
-            <p style="color: #856404; margin: 0.5rem 0 0 0; font-size: 0.95rem;">
-            Gemini 웹 자동화를 사용하려면 우선 수동으로 로그인해야 합니다.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #2196f3; margin-bottom: 2rem;">
-            <h4 style="color: #1976d2; margin: 0;">🌐 Streamlit Cloud 환경 - GeminI 프롬프트 관리</h4>
-            <p style="color: #1976d2; margin: 0.5rem 0 0 0; font-size: 0.95rem;">
-            Selenium 브라우저 자동화는 로컬 환경에서만 사용 가능합니다. 여기서는 생성된 프롬프트를 관리하고 수동 전송할 수 있습니다.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background-color: #fff3cd; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+        <h4 style="color: #856404; margin: 0;">🚨 Gemini 자동화 사용 전 설정 필요</h4>
+        <p style="color: #856404; margin: 0.5rem 0 0 0; font-size: 0.95rem;">
+        Gemini 웹 자동화를 사용하려면 우선 수동으로 로그인해야 합니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("### 🔧 설정 가이드")
     
@@ -70,67 +59,38 @@ def show_gemini_setup_guide():
 
 def create_gemini_automation_form():
     """Gemini 자동화 설정 폼 생성"""
-    if AUTOMATION_AVAILABLE:
-        st.markdown("### 🤖 Gemini 자동화 설정")
-        
-        # 설정 폼
-        with st.form("gemini_automation_config"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                headless_mode = st.checkbox("헤드리스 모드", help="브라우저 창을 표시하지 않고 실행")
-                
-                chrome_profile_path = st.text_input(
-                    "Chrome 프로필 경로",
-                    value="/Users/$(whoami)/Library/Application Support/Google/Chrome/Default",
-                    help="Chrome 프로필 디렉토리 경로 (로그인 상태 유지용)"
-                )
-            
-            with col2:
-                auto_login = st.checkbox("자동 로그인 시도", help="브라우저 시작 시 로그인 상태 확인")
-                
-                test_mode = st.checkbox("테스트 모드", help="간단한 프롬프트로 기능 테스트")
-            
-            # 제출 버튼
-            submitted = st.form_submit_button("설정 저장", type="primary")
-            
-            if submitted:
-                # 설정을 세션 상태에 저장
-                st.session_state.gemini_config = {
-                    "headless_mode": headless_mode,
-                    "chrome_profile_path": chrome_profile_path,
-                    "auto_login": auto_login,
-                    "test_mode": test_mode
-                }
-                st.success("✅ Gemini 자동화 설정이 저장되었습니다!")
-    else:
-        st.markdown("### 🌐 프롬프트 관리 도구")
-        
-        col1, col2, col3 = st.columns(3)
+    st.markdown("### 🤖 Gemini 자동화 설정")
+    
+    # 설정 폼
+    with st.form("gemini_automation_config"):
+        col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("""
-            <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; border-left: 4px solid #2196f3;">
-                <h5 style="color: #1976d2; margin: 0;">📝 프롬프트 생성</h5>
-                <p style="color: #1976d2; margin: 0.5rem 0 0 0; font-size: 0.85rem;">다른 도구에서 생성된 프롬프트들이 자동으로 저장됩니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            headless_mode = st.checkbox("헤드리스 모드", help="브라우저 창을 표시하지 않고 실행")
+            
+            chrome_profile_path = st.text_input(
+                "Chrome 프로필 경로",
+                value="/Users/$(whoami)/Library/Application Support/Google/Chrome/Default",
+                help="Chrome 프로필 디렉토리 경로 (로그인 상태 유지용)"
+            )
         
         with col2:
-            st.markdown("""
-            <div style="background-color: #e8f5e8; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50;">
-                <h5 style="color: #2e7d32; margin: 0;">📋 복사/다운로드</h5>
-                <p style="color: #2e7d32; margin: 0.5rem 0 0 0; font-size: 0.85rem;">수동으로 Gemini에 붙여넣을 수 있도록 텍스트 복사.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            auto_login = st.checkbox("자동 로그인 시도", help="브라우저 시작 시 로그인 상태 확인")
+            
+            test_mode = st.checkbox("테스트 모드", help="간단한 프롬프트로 기능 테스트")
         
-        with col3:
-            st.markdown("""
-            <div style="background-color: #fff3e0; padding: 1rem; border-radius: 8px; border-left: 4px solid #ff9800;">
-                <h5 style="color: #e65100; margin: 0;">🔗 직접 링크</h5>
-                <p style="color: #e65100; margin: 0.5rem 0 0 0; font-size: 0.85rem;">Gemini Deep Research 페이지로 바로 이동.</p>
-            </div>
-            """, unsafe_allow_html=True)
+        # 제출 버튼
+        submitted = st.form_submit_button("설정 저장", type="primary")
+        
+        if submitted:
+            # 설정을 세션 상태에 저장
+            st.session_state.gemini_config = {
+                "headless_mode": headless_mode,
+                "chrome_profile_path": chrome_profile_path,
+                "auto_login": auto_login,
+                "test_mode": test_mode
+            }
+            st.success("✅ Gemini 자동화 설정이 저장되었습니다!")
 
 def show_existing_prompts():
     """기존 생성된 프롬프트들 표시"""
@@ -462,50 +422,20 @@ def render_gemini_automation_page():
                 if hasattr(st.session_state, 'gemini_config'):
                     config = st.session_state.gemini_config
                     
-                    if AUTOMATION_AVAILABLE:
-                        if st.button("🚀 Gemini에 전송하여 연구 시작", type="primary", use_container_width=True):
-                            # 자동화 작업 시작
-                            run_gemini_automation_task(selected_prompt, config)
+                    if st.button("🚀 Gemini에 전송하여 연구 시작", type="primary", use_container_width=True):
+                        # 자동화 작업 시작
+                        run_gemini_automation_task(selected_prompt, config)
+                        
+                        # 진행 상황 표시
+                        with st.spinner("Gemini 자동화가 실행 중입니다. 잠시만 기다려주세요..."):
+                            # 백그라운드 작업 완료 대기
+                            time.sleep(1)
                             
-                            # 진행 상황 표시
-                            with st.spinner("Gemini 자동화가 실행 중입니다. 잠시만 기다려주세요..."):
-                                # 백그라운드 작업 완료 대기
-                                time.sleep(1)
-                                
-                            st.success("Gemini 자동화가 시작되었습니다! 결과를 확인하려면 페이지를 새로고침하세요.")
-                            st.rerun()
-                    else:
-                        st.warning("⚠️ Selenium이 설치되지 않았습니다. 로컬 환경에서 사용하세요.")
+                        st.success("Gemini 자동화가 시작되었습니다! 결과를 확인하려면 페이지를 새로고침하세요.")
+                        st.rerun()
+                
                 else:
                     st.warning("⚠️ 먼저 위에서 Gemini 자동화 설정을 저장해주세요.")
-                
-                # Streamlit Cloud 환경을 위한 대안 제공
-                if not AUTOMATION_AVAILABLE:
-                    st.markdown("---")
-                    st.markdown("#### 🌐 대안 방법 (수동 전송)")
-                    
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        if st.button("📋 프롬프트 복사", type="secondary", use_container_width=True):
-                            st.session_state.copied_prompt = selected_prompt['content']
-                            st.success("프롬프트가 클립보드에 복사되었습니다!")
-                    
-                    with col2:
-                        if st.button("🔗 Gemini 링크 열기", use_container_width=True):
-                            gemini_url = "https://gemini.google.com/app/topic"
-                            st.write(f"🔗 [Gemini Deep Research 열기]({gemini_url})")
-                            st.success("수동으로 Gemini에 접속하여 프롬프트를 붙여넣으세요!")
-                    
-                    with col3:
-                        filename = f"prompt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-                        st.download_button(
-                            label="📥 프롬프트 다운로드",
-                            data=selected_prompt['content'],
-                            file_name=filename,
-                            mime="text/plain",
-                            use_container_width=True
-                        )
             
             elif mode == "edit":
                 # 프롬프트 편집 폼
@@ -545,17 +475,6 @@ def render_gemini_automation_page():
     
     # Gemini 연구 결과 표시
     show_gemini_results()
-    
-    # 복사된 프롬프트 표시 (Streamlit Cloud 환경)
-    if hasattr(st.session_state, 'copied_prompt'):
-        st.markdown("---")
-        st.markdown("### 📋 복사된 프롬프트")
-        st.text_area(
-            "Gemini Deep Research에 붙여넣을 프롬프트", 
-            st.session_state.copied_prompt, 
-            height=200,
-            help="이 프롬프트를 복사하여 https://gemini.google.com/app/topic 에 붙여넣으세요."
-        )
     
     # 실시간 업데이트를 위한 자동 새로고침
     if hasattr(st.session_state, 'gemini_running') and st.session_state.gemini_running:
