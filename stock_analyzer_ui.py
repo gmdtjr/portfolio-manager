@@ -77,33 +77,15 @@ def render_stock_analyzer_page():
                     with st.spinner("프롬프트를 생성하고 있습니다..."):
                         final_prompt, found_in_db = generator.generate_deep_dive_prompt(user_stock_name)
                     
-                    # 세션 상태에 저장 (기존 방식 유지)
+                    # 세션 상태에 저장
                     st.session_state['generated_prompt'] = final_prompt
                     st.session_state['analyzed_stock'] = user_stock_name.strip()
                     st.session_state['found_in_db'] = found_in_db
                     
-                    # Gemini 자동화를 위한 프롬프트 저장
-                    from datetime import datetime
-                    saved_prompt = {
-                        "title": f"종목 분석 - {user_stock_name.strip()}",
-                        "content": final_prompt,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "source": "stock_analyzer",
-                        "stock_name": user_stock_name.strip(),
-                        "found_in_db": found_in_db
-                    }
-                    
-                    if 'generated_prompts' not in st.session_state:
-                        st.session_state.generated_prompts = []
-                    
-                    st.session_state.generated_prompts.append(saved_prompt)
-                    
                     if found_in_db:
                         st.success(f"✅ '{user_stock_name.strip()}' 정보를 투자 노트에서 찾았습니다! 맞춤형 검증 프롬프트가 생성되었습니다.")
-                        st.info("💡 Gemini 웹 자동화 페이지에서 이 프롬프트를 직접 전송할 수 있습니다.")
                     else:
                         st.info(f"ℹ️ '{user_stock_name.strip()}' 정보가 투자 노트에 없습니다. 표준 분석 프롬프트가 생성되었습니다.")
-                        st.info("💡 Gemini 웹 자동화 페이지에서 이 프롬프트를 직접 전송할 수 있습니다.")
                     
                 except Exception as e:
                     st.error(f"❌ 프롬프트 생성 실패: {e}")

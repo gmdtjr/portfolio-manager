@@ -59,13 +59,6 @@ try:
 except ImportError:
     PORTFOLIO_DIAGNOSIS_UI_AVAILABLE = False
 
-# Gemini 웹 자동화 import
-try:
-    from gemini_integration_ui import render_gemini_automation_page
-    GEMINI_AUTOMATION_AVAILABLE = True
-except ImportError:
-    GEMINI_AUTOMATION_AVAILABLE = False
-
 # 페이지 설정
 st.set_page_config(
     page_title="AI 포트폴리오 관리 시스템",
@@ -400,7 +393,7 @@ def main():
     
     page = st.sidebar.selectbox(
         "원하는 기능을 선택하세요",
-        ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기", "🧭 유망 종목 탐색기", "🔬 종목 상세 분석기", "⚖️ 포트폴리오 정밀 진단", "📚 보고서 아카이브", "🤖 Gemini 웹 자동화"],
+        ["🔄 포트폴리오 업데이트", "📝 투자 노트 자동 생성", "🎯 데일리 브리핑 생성기", "🧭 유망 종목 탐색기", "🔬 종목 상세 분석기", "⚖️ 포트폴리오 정밀 진단", "📚 보고서 아카이브"],
         help="AI 기반 투자 분석 및 포트폴리오 관리 도구를 선택하세요"
     )
     
@@ -598,17 +591,6 @@ def main():
         
         # 분리된 모듈에서 페이지 렌더링
         render_portfolio_diagnosis_page()
-    
-    elif page == "🤖 Gemini 웹 자동화":
-        # Gemini 웹 자동화 기능
-        if not GEMINI_AUTOMATION_AVAILABLE:
-            st.error("❌ Gemini 웹 자동화 기능을 사용할 수 없습니다.")
-            st.info("💡 필요한 모듈이 설치되지 않았습니다.")
-            st.info("🔧 `pip install selenium webdriver-manager` 명령어로 필요한 패키지를 설치하세요.")
-            return
-        
-        # 분리된 모듈에서 페이지 렌더링
-        render_gemini_automation_page()
 
 if __name__ == "__main__":
     main()

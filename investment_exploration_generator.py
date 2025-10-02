@@ -82,22 +82,6 @@ def render_exploration_page():
             # 템플릿 기반으로 프롬프트 즉시 생성
             final_prompt = generate_exploration_prompt(user_idea, user_exclusions)
             
-            # Gemini 자동화를 위한 프롬프트 저장
-            from datetime import datetime
-            saved_prompt = {
-                "title": f"유망 종목 탐색 - {user_idea[:30]}{'...' if len(user_idea) > 30 else ''}",
-                "content": final_prompt,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "source": "exploration",
-                "investment_idea": user_idea.strip(),
-                "exclusions": user_exclusions.strip()
-            }
-            
-            if 'generated_prompts' not in st.session_state:
-                st.session_state.generated_prompts = []
-            
-            st.session_state.generated_prompts.append(saved_prompt)
-            
             st.markdown("""
             <div style="background-color: #d4edda; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 1rem;">
                 <h4 style="color: #155724; margin: 0;">✅ 유망 종목 탐색 프롬프트</h4>
@@ -105,7 +89,7 @@ def render_exploration_page():
             </div>
             """, unsafe_allow_html=True)
             
-            st.info("💡 아래 프롬프트를 복사하여 Deep Research에 사용하거나, Gemini 웹 자동화 페이지에서 직접 전송할 수 있습니다.")
+            st.info("💡 아래 프롬프트를 복사하여 Deep Research에 사용하세요.")
             
             # 프롬프트 표시
             st.code(
