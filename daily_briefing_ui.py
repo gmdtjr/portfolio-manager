@@ -234,6 +234,23 @@ def render_daily_briefing_page():
                     try:
                         with st.spinner("🤖 프롬프트를 생성하고 있습니다..."):
                             prompt = generator.generate_complete_prompt(time_window_text)
+                            
+                            # 생성된 프롬프트를 세션 상태에 저장
+                            saved_prompt = {
+                                "title": f"데일리 브리핑 - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                                "content": prompt,
+                                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "source": "daily_briefing",
+                                "time_window": time_window_text
+                            }
+                            
+                            if 'generated_prompts' not in st.session_state:
+                                st.session_state.generated_prompts = []
+                            
+                            st.session_state.generated_prompts.append(saved_prompt)
+                            
+                            st.success("✅ 프롬프트가 생성되었습니다!")
+                            st.info("💡 Gemini 웹 자동화 페이지에서 이 프롬프트를 직접 전송할 수 있습니다.")
                             st.text_area("생성된 프롬프트", prompt, height=400)
                     except Exception as e:
                         st.error(f"❌ 프롬프트 생성 실패: {e}")

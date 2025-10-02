@@ -46,10 +46,25 @@ def render_portfolio_diagnosis_page():
                 with st.spinner("포트폴리오 진단 프롬프트를 생성하고 있습니다..."):
                     final_prompt = generator.generate_diagnosis_prompt()
                 
-                # 세션 상태에 저장
+                # 세션 상태에 저장 (기존 방식 유지)
                 st.session_state['diagnosis_prompt'] = final_prompt
                 
+                # Gemini 자동화를 위한 프롬프트 저장
+                from datetime import datetime
+                saved_prompt = {
+                    "title": f"포트폴리오 진단 - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    "content": final_prompt,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "source": "portfolio_diagnosis"
+                }
+                
+                if 'generated_prompts' not in st.session_state:
+                    st.session_state.generated_prompts = []
+                
+                st.session_state.generated_prompts.append(saved_prompt)
+                
                 st.success("✅ 포트폴리오 정밀 진단 프롬프트가 생성되었습니다!")
+                st.info("💡 Gemini 웹 자동화 페이지에서 이 프롬프트를 직접 전송할 수 있습니다.")
                 
             except Exception as e:
                 st.error(f"❌ 프롬프트 생성 실패: {e}")
